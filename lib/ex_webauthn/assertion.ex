@@ -1,0 +1,111 @@
+defmodule ExWebauthn.Assertion do
+  @moduledoc """
+  Defines WebAuthn assertion structures and operations.
+
+  This module contains structures used during the authentication ceremony,
+  including assertion responses and request options.
+  """
+
+  alias ExWebauthn.Credential
+  alias ExWebauthn.Attestation.AuthenticatorData
+
+  @doc """
+  Public key credential request options sent to authenticator.
+  """
+  defmodule RequestOptions do
+    @moduledoc """
+    Represents options for requesting an assertion.
+    """
+
+    defstruct [
+      :challenge,
+      :timeout,
+      :rp_id,
+      :allow_credentials,
+      :user_verification,
+      :extensions
+    ]
+
+    @type t :: %__MODULE__{
+            challenge: binary(),
+            timeout: pos_integer() | nil,
+            rp_id: String.t() | nil,
+            allow_credentials: [Credential.Descriptor.t()] | nil,
+            user_verification: String.t() | nil,
+            extensions: map() | nil
+          }
+  end
+
+  @doc """
+  Authenticator assertion response.
+  """
+  defmodule Response do
+    @moduledoc """
+    Represents an authenticator assertion response.
+    """
+
+    defstruct [
+      :credential_id,
+      :authenticator_data,
+      :signature,
+      :user_handle
+    ]
+
+    @type t :: %__MODULE__{
+            credential_id: binary(),
+            authenticator_data: AuthenticatorData.t(),
+            signature: binary(),
+            user_handle: binary() | nil
+          }
+  end
+
+  @doc """
+  Client data JSON structure for assertions.
+  """
+  defmodule ClientData do
+    @moduledoc """
+    Represents client data JSON for WebAuthn assertions.
+    """
+
+    defstruct [
+      :type,
+      :challenge,
+      :origin,
+      :cross_origin,
+      :token_binding
+    ]
+
+    @type t :: %__MODULE__{
+            type: String.t(),
+            challenge: String.t(),
+            origin: String.t(),
+            cross_origin: boolean() | nil,
+            token_binding: map() | nil
+          }
+  end
+
+  @doc """
+  Full assertion result containing both client and authenticator data.
+  """
+  defmodule Result do
+    @moduledoc """
+    Represents a complete assertion result.
+    """
+
+    defstruct [
+      :credential_id,
+      :client_data_json,
+      :authenticator_data,
+      :signature,
+      :user_handle
+    ]
+
+    @type t :: %__MODULE__{
+            credential_id: binary(),
+            client_data_json: binary(),
+            authenticator_data: binary(),
+            signature: binary(),
+            user_handle: binary() | nil
+          }
+  end
+end
