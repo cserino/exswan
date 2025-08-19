@@ -1,6 +1,7 @@
 defmodule ExWebauthn.AttestationCryptoTest do
   use ExUnit.Case
   alias ExWebauthn.AttestationStatement
+  alias X509.Certificate
 
   @moduledoc """
   Comprehensive cryptographic tests for attestation statement verification.
@@ -123,7 +124,7 @@ defmodule ExWebauthn.AttestationCryptoTest do
   describe "RS256 (RSA with SHA-256) signature verification" do
     setup do
       # Generate RSA key pair using :public_key directly for simpler testing
-      rsa_private_key = :public_key.generate_key({:rsa, 2048, 65537})
+      rsa_private_key = :public_key.generate_key({:rsa, 2048, 65_537})
 
       # Extract public key components
       {:RSAPrivateKey, _, modulus, exponent, _, _, _, _, _, _, _} = rsa_private_key
@@ -396,7 +397,7 @@ defmodule ExWebauthn.AttestationCryptoTest do
           "/CN=U2F Test Certificate",
           template: :server,
           extensions: [
-            subject_alt_name: X509.Certificate.Extension.subject_alt_name(["test.example.com"])
+            subject_alt_name: Certificate.Extension.subject_alt_name(["test.example.com"])
           ]
         )
 
@@ -418,15 +419,20 @@ defmodule ExWebauthn.AttestationCryptoTest do
       rp_id_hash = binary_part(auth_data, 0, 32)
 
       # For U2F, the signature is over:
-      # 0x00 || rpIdHash || clientDataHash || credentialId || publicKey
+      # 0x00 || rpIdHash || clientDataHash || credentialId || publicKeyU2F
       # We need to extract credentialId and publicKey from auth_data
 
       # Skip RP ID hash (32), flags (1), counter (4), AAGUID (16)
       <<_::binary-size(53), cred_id_len::16-big, rest::binary>> = auth_data
       <<cred_id::binary-size(cred_id_len), public_key_cbor::binary>> = rest
 
-      # Construct U2F verification data
-      verification_data = <<0x00>> <> rp_id_hash <> client_data_hash <> cred_id <> public_key_cbor
+      # Parse the COSE public key to get the coordinates for U2F format
+      {:ok, %{-2 => x, -3 => y}} = ExWebauthn.CBOR.decode_credential_public_key(public_key_cbor)
+      # Convert to raw ANSI X9.62 public key format as per WebAuthn spec § 8.6
+      public_key_u2f = <<0x04>> <> x <> y
+
+      # Construct U2F verification data as per WebAuthn spec § 8.6
+      verification_data = <<0x00>> <> rp_id_hash <> client_data_hash <> cred_id <> public_key_u2f
 
       # Use :public_key.sign for signing with X509 private key
       signature = :public_key.sign(verification_data, :sha256, private_key)
@@ -523,18 +529,13 @@ defmodule ExWebauthn.AttestationCryptoTest do
       private_key = X509.PrivateKey.new_ec(:secp256r1)
 
       # Create certificate that expired yesterday
-      # X509 library expects Validity to be a record or specific format
-      # We'll create a cert with custom validity period
-      now = DateTime.utc_now()
-      not_before = DateTime.add(now, -2, :day)
-      not_after = DateTime.add(now, -1, :day)
-
+      # Use -1 to create an expired certificate (expired 1 day ago)
       expired_cert =
         X509.Certificate.self_signed(
           private_key,
           "/CN=Expired Certificate",
           template: :server,
-          validity: X509.Certificate.Validity.new(not_before, not_after)
+          validity: -1
         )
 
       cert_der = X509.Certificate.to_der(expired_cert)
@@ -588,7 +589,7 @@ defmodule ExWebauthn.AttestationCryptoTest do
 
     test "prevents algorithm confusion attacks" do
       # Try to use RS256 signature with ES256 algorithm identifier
-      rsa_key = :public_key.generate_key({:rsa, 2048, 65537})
+      rsa_key = :public_key.generate_key({:rsa, 2048, 65_537})
 
       auth_data = create_test_auth_data()
       client_data_hash = :crypto.hash(:sha256, "test client data")

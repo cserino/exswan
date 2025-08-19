@@ -22,5 +22,4 @@
 - Group related functions together
 - Use `with` for complex nested operations
 - Return {:ok, result} | {:error, reason} tuples for operations that can fail
-- Import order: standard library, deps, local modules
-
+- Write one-off scripts in ".local/scripts" directory to write temporary tests; don't use iex directly
