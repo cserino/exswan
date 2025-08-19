@@ -10,19 +10,22 @@ ExWebauthn provides a robust, security-focused library for implementing WebAuthn
 ## Features
 
 🔐 **Complete WebAuthn Implementation**
+
 - Full WebAuthn Level 2 specification compliance
 - Registration and authentication ceremony support
 - Multiple attestation format support (packed, fido-u2f, android-safetynet)
 - Comprehensive security validation
 
 🛡️ **Security First**
+
 - Cryptographic challenge generation
-- Origin and RP ID validation  
+- Origin and RP ID validation
 - Replay attack protection
 - Certificate chain validation
 - Secure credential storage patterns
 
 ⚡ **Developer Friendly**
+
 - Clean, documented APIs
 - Phoenix integration helpers
 - Comprehensive error handling
@@ -53,7 +56,7 @@ rp = %ExWebauthn.Credential.RelyingParty{
 
 user = %ExWebauthn.Credential.User{
   id: :crypto.strong_rand_bytes(32),
-  name: "user@example.com", 
+  name: "user@example.com",
   display_name: "John Doe"
 }
 
@@ -70,7 +73,7 @@ user = %ExWebauthn.Credential.User{
 # Generate request options for authentication
 {:ok, options} = ExWebauthn.Authentication.generate_request_options("example.com")
 
-# Send options to client, receive assertion response  
+# Send options to client, receive assertion response
 # Then verify the authentication response
 {:ok, result} = ExWebauthn.Authentication.verify_assertion(response, options, stored_credential)
 ```
@@ -78,6 +81,7 @@ user = %ExWebauthn.Credential.User{
 ## Core Concepts
 
 ### Credential Management
+
 ```elixir
 # Create credential descriptors for allowlist
 descriptor = %ExWebauthn.Credential.Descriptor{
@@ -88,6 +92,7 @@ descriptor = %ExWebauthn.Credential.Descriptor{
 ```
 
 ### Security Validation
+
 ```elixir
 # Validate challenges
 challenge = ExWebauthn.generate_challenge()
@@ -98,11 +103,12 @@ challenge = ExWebauthn.generate_challenge()
 ```
 
 ### CBOR Handling
+
 ```elixir
 # Decode attestation objects
 {:ok, attestation_object} = ExWebauthn.CBOR.decode_attestation_object(cbor_data)
 
-# Decode credential public keys  
+# Decode credential public keys
 {:ok, public_key} = ExWebauthn.CBOR.decode_credential_public_key(cbor_data)
 ```
 
@@ -118,9 +124,9 @@ defmodule MyAppWeb.AuthController do
 
   def begin_registration(conn, params) do
     case Helpers.start_registration(conn, params) do
-      {:ok, options, conn} -> 
+      {:ok, options, conn} ->
         json(conn, options)
-      {:error, reason} -> 
+      {:error, reason} ->
         put_status(conn, 400) |> json(%{error: reason})
     end
   end
@@ -148,11 +154,13 @@ config :ex_webauthn,
 ExWebauthn is currently under active development following a phased approach:
 
 - ✅ **Phase 1**: Core Infrastructure (Complete)
+
   - Data structures and validation
   - CBOR encoding/decoding
   - Basic API foundation
 
 - 🚧 **Phase 2**: Registration Flow (In Progress)
+
   - Credential creation options
   - Attestation processing
   - Registration verification
@@ -198,4 +206,3 @@ ExWebauthn is released under the MIT License. See [LICENSE](LICENSE) for details
 - Built following the [WebAuthn W3C Specification](https://www.w3.org/TR/webauthn-2/)
 - Inspired by the FIDO Alliance's work on passwordless authentication
 - Thanks to the Elixir community for excellent libraries and tooling
-

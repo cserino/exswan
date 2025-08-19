@@ -43,7 +43,7 @@ defmodule ExWebauthn do
       {:ok, result} = ExWebauthn.Authentication.verify_assertion(response, options, credential)
   """
 
-  alias ExWebauthn.{Assertion, Attestation, Credential, Registration, Validator}
+  alias ExWebauthn.{Assertion, Attestation, Authentication, Credential, Registration, Validator}
 
   @doc """
   Generates a cryptographically secure challenge for WebAuthn operations.
@@ -121,6 +121,38 @@ defmodule ExWebauthn do
   @spec options_to_json(Attestation.CreationOptions.t()) :: map()
   def options_to_json(%Attestation.CreationOptions{} = options) do
     Registration.options_to_json(options)
+  end
+
+  @doc """
+  Convenience function for generating authentication options.
+
+  Delegates to `ExWebauthn.Authentication.generate_request_options/2`.
+  """
+  @spec generate_authentication_options(String.t(), keyword()) ::
+          {:ok, Assertion.RequestOptions.t()} | {:error, atom()}
+  def generate_authentication_options(rp_id, opts \\ []) do
+    Authentication.generate_request_options(rp_id, opts)
+  end
+
+  @doc """
+  Convenience function for verifying authentication responses.
+
+  Delegates to `ExWebauthn.Authentication.verify_assertion/4`.
+  """
+  @spec verify_authentication(map(), Assertion.RequestOptions.t(), Credential.t(), String.t()) ::
+          {:ok, Assertion.Result.t()} | {:error, atom()}
+  def verify_authentication(response, options, credential, origin) do
+    Authentication.verify_assertion(response, options, credential, origin)
+  end
+
+  @doc """
+  Convenience function for converting authentication options to JSON format.
+
+  Delegates to `ExWebauthn.Authentication.options_to_json/1`.
+  """
+  @spec authentication_options_to_json(Assertion.RequestOptions.t()) :: map()
+  def authentication_options_to_json(%Assertion.RequestOptions{} = options) do
+    Authentication.options_to_json(options)
   end
 
   @doc """

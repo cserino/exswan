@@ -122,6 +122,7 @@ defmodule ExWebauthn.AttestationStatementTest do
              ) == :ok
     end
 
+    @tag capture_log: true
     test "rejects unsupported attestation format" do
       att_stmt = %{}
       auth_data = create_test_auth_data()

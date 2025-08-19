@@ -28,6 +28,7 @@ defmodule ExWebauthn.MixProject do
       {:jason, "~> 1.4"},
       {:cbor, "~> 1.0"},
       {:x509, "~> 0.8"},
+      {:jose, "~> 1.11"},
       {:ex_doc, "~> 0.31", only: :dev, runtime: false},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false}
     ]

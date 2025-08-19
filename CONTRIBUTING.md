@@ -5,17 +5,20 @@ Thank you for your interest in contributing to ExWebauthn! This document provide
 ## Development Setup
 
 1. Clone the repository:
+
    ```bash
    git clone https://github.com/cserino/ex_webauthn.git
    cd ex_webauthn
    ```
 
 2. Install dependencies:
+
    ```bash
    mix deps.get
    ```
 
 3. Run tests to ensure everything is working:
+
    ```bash
    mix test
    ```
@@ -78,3 +81,4 @@ Thank you for your interest in contributing to ExWebauthn! This document provide
 If you have questions about contributing, please open an issue or reach out to the maintainers.
 
 Thank you for contributing to ExWebauthn! 🎉
+

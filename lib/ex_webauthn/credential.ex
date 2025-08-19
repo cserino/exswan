@@ -16,22 +16,26 @@ defmodule ExWebauthn.Credential do
     :type,
     :id,
     :private_key,
+    :public_key,
     :rp_id,
     :user_handle,
     :user_display_name,
     :cred_protect,
-    :creation_time
+    :creation_time,
+    :sign_count
   ]
 
   @type t :: %__MODULE__{
           type: :public_key,
           id: credential_id(),
           private_key: binary(),
+          public_key: map(),
           rp_id: String.t(),
           user_handle: user_handle(),
           user_display_name: String.t(),
           cred_protect: atom(),
-          creation_time: DateTime.t()
+          creation_time: DateTime.t(),
+          sign_count: non_neg_integer()
         }
 
   defmodule Descriptor do

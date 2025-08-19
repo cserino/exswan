@@ -2,7 +2,7 @@ defmodule ExWebauthnTest do
   use ExUnit.Case
   doctest ExWebauthn
 
-  alias ExWebauthn.{Assertion, Attestation, Credential}
+  alias ExWebauthn.{Attestation, Credential}
 
   describe "generate_challenge/0" do
     test "generates challenge of correct length" do

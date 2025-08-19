@@ -1,6 +1,7 @@
 # Agent Guidelines for ex_webauthn
 
 ## Commands
+
 - **Test**: `mix test` (all tests), `mix test test/filename_test.exs` (single file)
 - **Format**: `mix format` (auto-format code)
 - **Compile**: `mix compile`
@@ -8,6 +9,7 @@
 - **Documentation**: `mix docs` (generate docs)
 
 ## Code Style
+
 - Use `mix format` for consistent formatting (configured in .formatter.exs)
 - Module names: PascalCase (e.g., `ExWebauthn`, `ExWebauthn.Client`)
 - Function names: snake_case (e.g., `hello`, `process_request`)
@@ -21,3 +23,4 @@
 - Use `with` for complex nested operations
 - Return {:ok, result} | {:error, reason} tuples for operations that can fail
 - Import order: standard library, deps, local modules
+

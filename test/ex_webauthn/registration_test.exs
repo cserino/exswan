@@ -276,7 +276,7 @@ defmodule ExWebauthn.RegistrationTest do
     options
   end
 
-  defp create_test_client_data(overrides \\ %{}) do
+  defp create_test_client_data(overrides) do
     base_challenge = Base.url_encode64(:crypto.strong_rand_bytes(32), padding: false)
 
     %{

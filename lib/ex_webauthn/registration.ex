@@ -155,11 +155,13 @@ defmodule ExWebauthn.Registration do
         id: credential_data.credential_id,
         # Not stored - kept on authenticator
         private_key: nil,
+        public_key: credential_data.credential_public_key,
         rp_id: options.rp.id,
         user_handle: options.user.id,
         user_display_name: options.user.display_name,
         cred_protect: nil,
-        creation_time: DateTime.utc_now()
+        creation_time: DateTime.utc_now(),
+        sign_count: authenticator_data.sign_count
       }
 
       {:ok, credential}
