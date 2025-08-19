@@ -6,12 +6,13 @@ defmodule ExWebauthn.Credential do
   including public key credentials, authenticator data, and credential sources.
   """
 
-  @type credential_id :: binary()
+  @type credential_id :: String.t()
   @type user_handle :: binary()
 
   @doc """
   Represents a WebAuthn credential source as stored by the authenticator.
   """
+  @derive Jason.Encoder
   defstruct [
     :type,
     :id,
@@ -28,12 +29,12 @@ defmodule ExWebauthn.Credential do
   @type t :: %__MODULE__{
           type: :public_key,
           id: credential_id(),
-          private_key: binary(),
+          private_key: binary() | nil,
           public_key: map(),
           rp_id: String.t(),
           user_handle: user_handle(),
           user_display_name: String.t(),
-          cred_protect: atom(),
+          cred_protect: atom() | nil,
           creation_time: DateTime.t(),
           sign_count: non_neg_integer()
         }
@@ -51,9 +52,17 @@ defmodule ExWebauthn.Credential do
 
     @type t :: %__MODULE__{
             type: :public_key,
-            id: binary(),
+            id: String.t(),
             transports: [String.t()]
           }
+
+    def to_json(%__MODULE__{} = desc) do
+      %{
+        "type" => "public-key",
+        "id" => desc.id,
+        "transports" => desc.transports
+      }
+    end
   end
 
   defmodule User do
@@ -61,6 +70,7 @@ defmodule ExWebauthn.Credential do
     Represents user entity information in WebAuthn operations.
     """
 
+    @derive Jason.Encoder
     defstruct [
       :id,
       :name,
@@ -79,6 +89,7 @@ defmodule ExWebauthn.Credential do
     Represents relying party entity information.
     """
 
+    @derive Jason.Encoder
     defstruct [
       :id,
       :name,
@@ -106,5 +117,37 @@ defmodule ExWebauthn.Credential do
             type: :public_key,
             alg: integer()
           }
+
+    def to_json(%__MODULE__{} = param) do
+      %{
+        "type" => type_to_json(param.type),
+        "alg" => param.alg
+      }
+    end
+
+    defp type_to_json(:public_key), do: "public-key"
+    defp type_to_json(other), do: other
+  end
+end
+
+defimpl Jason.Encoder, for: ExWebauthn.Credential.Descriptor do
+  alias ExWebauthn.Credential.Descriptor
+
+  def encode(value, opts) do
+    Jason.Encode.map(
+      Descriptor.to_json(value),
+      opts
+    )
+  end
+end
+
+defimpl Jason.Encoder, for: ExWebauthn.Credential.Parameters do
+  alias ExWebauthn.Credential.Parameters
+
+  def encode(value, opts) do
+    Jason.Encode.map(
+      Parameters.to_json(value),
+      opts
+    )
   end
 end

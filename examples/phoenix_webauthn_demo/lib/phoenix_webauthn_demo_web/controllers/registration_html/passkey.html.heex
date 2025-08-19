@@ -1,0 +1,59 @@
+<div class="mx-auto max-w-sm">
+  <.header class="text-center">
+    Add a Passkey
+    <:subtitle>
+      Complete your registration by adding a passkey for secure, passwordless access
+    </:subtitle>
+  </.header>
+
+  <div class="mt-8 space-y-4">
+    <div class="text-sm text-gray-600">
+      <p>Hello, <strong><%= @user.display_name || @user.email %></strong>!</p>
+      <p class="mt-2">
+        You'll use your device's biometric authentication (fingerprint, face recognition) or security key to sign in securely.
+      </p>
+    </div>
+
+    <div id="webauthn-status" class="hidden">
+      <div class="rounded-md bg-blue-50 p-4">
+        <div class="flex">
+          <div class="ml-3">
+            <p class="text-sm text-blue-700" id="webauthn-message">
+              Setting up your passkey...
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="webauthn-error" class="hidden">
+      <div class="rounded-md bg-red-50 p-4">
+        <div class="flex">
+          <div class="ml-3">
+            <p class="text-sm text-red-700" id="webauthn-error-message">
+              An error occurred
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <button
+      id="register-passkey"
+      class="btn btn-primary w-full"
+      data-email={@user.email}
+    >
+      Create Passkey
+    </button>
+
+    <p class="text-center text-sm text-gray-500">
+      <.link navigate={~p"/"} class="font-semibold text-brand hover:underline">
+        Skip for now
+      </.link>
+    </p>
+  </div>
+</div>
+
+<script>
+  window.userEmail = '<%= @user.email %>';
+</script>

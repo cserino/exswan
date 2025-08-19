@@ -171,7 +171,7 @@ defmodule ExWebauthn.AttestationStatement do
       <<_aaguid::binary-size(16), cred_id_len::16-big, _cred_id::binary-size(cred_id_len),
         key_data::binary>> = remaining
 
-      case ExWebauthn.CBOR.decode_credential_public_key(key_data) do
+      case ExWebauthn.CBORUtils.decode_credential_public_key(key_data) do
         {:ok, public_key} -> {:ok, public_key}
         error -> error
       end
@@ -234,115 +234,119 @@ defmodule ExWebauthn.AttestationStatement do
   end
 
   defp expired_certificate?(cert) do
-    case X509.Certificate.from_der(cert) do
-      {:ok, certificate} ->
-        # Extract validity period from certificate
-        validity = X509.Certificate.validity(certificate)
-        current_time = DateTime.utc_now()
-
-        # Check if certificate is expired
-        case validity do
-          {:Validity, {:utcTime, _not_before_chars}, {:utcTime, not_after_chars}} ->
-            # Parse ASN.1 UTCTime format (YYMMDDHHMMSSZ)
-            case parse_utc_time(not_after_chars) do
-              {:ok, not_after_dt} ->
-                DateTime.compare(current_time, not_after_dt) == :gt
-
-              {:error, _} ->
-                false
-            end
-
-          {:Validity, {:generalTime, _not_before_chars}, {:generalTime, not_after_chars}} ->
-            # Parse ASN.1 GeneralizedTime format (YYYYMMDDHHMMSSZ)
-            case parse_generalized_time(not_after_chars) do
-              {:ok, not_after_dt} ->
-                DateTime.compare(current_time, not_after_dt) == :gt
-
-              {:error, _} ->
-                false
-            end
-
-          _ ->
-            false
-        end
-
-      {:error, _} ->
-        false
+    with {:ok, certificate} <- parse_certificate(cert),
+         {:ok, not_after} <- extract_expiry_date(certificate) do
+      certificate_expired?(not_after)
+    else
+      _ -> false
     end
+  end
+
+  defp parse_certificate(cert) do
+    X509.Certificate.from_der(cert)
+  end
+
+  defp extract_expiry_date(certificate) do
+    validity = X509.Certificate.validity(certificate)
+
+    case validity do
+      {:Validity, _not_before, {:utcTime, not_after_chars}} ->
+        parse_utc_time(not_after_chars)
+
+      {:Validity, _not_before, {:generalTime, not_after_chars}} ->
+        parse_generalized_time(not_after_chars)
+
+      _ ->
+        {:error, :invalid_validity_format}
+    end
+  end
+
+  defp certificate_expired?(not_after_dt) do
+    current_time = DateTime.utc_now()
+    DateTime.compare(current_time, not_after_dt) == :gt
   end
 
   # Parse ASN.1 UTCTime format (YYMMDDHHMMSSZ or YYMMDDHHMMSS+HHMM)
   defp parse_utc_time(time_chars) when is_list(time_chars) do
     time_string = List.to_string(time_chars)
 
-    # UTCTime format: YYMMDDHHMMSSZ
-    case time_string do
-      <<year::binary-size(2), month::binary-size(2), day::binary-size(2), hour::binary-size(2),
-        minute::binary-size(2), second::binary-size(2), "Z">> ->
-        # Convert 2-digit year to 4-digit (RFC 5280: if YY >= 50, then 19YY, else 20YY)
-        year_int = String.to_integer(year)
-        full_year = if year_int >= 50, do: 1900 + year_int, else: 2000 + year_int
-
-        case Time.new(
-               String.to_integer(hour),
-               String.to_integer(minute),
-               String.to_integer(second)
-             ) do
-          {:ok, time} ->
-            case Date.new(full_year, String.to_integer(month), String.to_integer(day)) do
-              {:ok, date} ->
-                {:ok, DateTime.new!(date, time)}
-
-              {:error, reason} ->
-                {:error, reason}
-            end
-
-          {:error, reason} ->
-            {:error, reason}
-        end
-
-      _ ->
-        {:error, :invalid_utc_time_format}
+    with {:ok, components} <- extract_utc_time_components(time_string),
+         {:ok, full_year} <- convert_two_digit_year(components.year),
+         {:ok, time} <- build_time(components.hour, components.minute, components.second),
+         {:ok, date} <- build_date(full_year, components.month, components.day) do
+      {:ok, DateTime.new!(date, time)}
+    else
+      _ -> {:error, :invalid_utc_time_format}
     end
   rescue
     _ -> {:error, :invalid_utc_time_format}
+  end
+
+  defp extract_utc_time_components(time_string) do
+    case time_string do
+      <<year::binary-size(2), month::binary-size(2), day::binary-size(2), hour::binary-size(2),
+        minute::binary-size(2), second::binary-size(2), "Z">> ->
+        {:ok,
+         %{
+           year: String.to_integer(year),
+           month: String.to_integer(month),
+           day: String.to_integer(day),
+           hour: String.to_integer(hour),
+           minute: String.to_integer(minute),
+           second: String.to_integer(second)
+         }}
+
+      _ ->
+        {:error, :invalid_format}
+    end
+  end
+
+  defp convert_two_digit_year(year_int) do
+    # RFC 5280: if YY >= 50, then 19YY, else 20YY
+    full_year = if year_int >= 50, do: 1900 + year_int, else: 2000 + year_int
+    {:ok, full_year}
+  end
+
+  defp build_time(hour, minute, second) do
+    Time.new(hour, minute, second)
+  end
+
+  defp build_date(year, month, day) do
+    Date.new(year, month, day)
   end
 
   # Parse ASN.1 GeneralizedTime format (YYYYMMDDHHMMSSZ)
   defp parse_generalized_time(time_chars) when is_list(time_chars) do
     time_string = List.to_string(time_chars)
 
-    # GeneralizedTime format: YYYYMMDDHHMMSSZ
-    case time_string do
-      <<year::binary-size(4), month::binary-size(2), day::binary-size(2), hour::binary-size(2),
-        minute::binary-size(2), second::binary-size(2), "Z">> ->
-        case Time.new(
-               String.to_integer(hour),
-               String.to_integer(minute),
-               String.to_integer(second)
-             ) do
-          {:ok, time} ->
-            case Date.new(
-                   String.to_integer(year),
-                   String.to_integer(month),
-                   String.to_integer(day)
-                 ) do
-              {:ok, date} ->
-                {:ok, DateTime.new!(date, time)}
-
-              {:error, reason} ->
-                {:error, reason}
-            end
-
-          {:error, reason} ->
-            {:error, reason}
-        end
-
-      _ ->
-        {:error, :invalid_generalized_time_format}
+    with {:ok, components} <- extract_generalized_time_components(time_string),
+         {:ok, time} <- build_time(components.hour, components.minute, components.second),
+         {:ok, date} <- build_date(components.year, components.month, components.day) do
+      {:ok, DateTime.new!(date, time)}
+    else
+      _ -> {:error, :invalid_generalized_time_format}
     end
   rescue
     _ -> {:error, :invalid_generalized_time_format}
+  end
+
+  defp extract_generalized_time_components(time_string) do
+    case time_string do
+      <<year::binary-size(4), month::binary-size(2), day::binary-size(2), hour::binary-size(2),
+        minute::binary-size(2), second::binary-size(2), "Z">> ->
+        {:ok,
+         %{
+           year: String.to_integer(year),
+           month: String.to_integer(month),
+           day: String.to_integer(day),
+           hour: String.to_integer(hour),
+           minute: String.to_integer(minute),
+           second: String.to_integer(second)
+         }}
+
+      _ ->
+        {:error, :invalid_format}
+    end
   end
 
   defp verify_packed_signature(signature, auth_data, client_data_hash, public_key, algorithm) do
@@ -364,7 +368,7 @@ defmodule ExWebauthn.AttestationStatement do
       public_key_cbor::binary>> = remaining
 
     # Parse the public key to get the raw format required for U2F
-    case ExWebauthn.CBOR.decode_credential_public_key(public_key_cbor) do
+    case ExWebauthn.CBORUtils.decode_credential_public_key(public_key_cbor) do
       {:ok, %{1 => 2, 3 => -7, -1 => 1, -2 => x, -3 => y}}
       when byte_size(x) == 32 and byte_size(y) == 32 ->
         # Convert COSE key to raw ANSI X9.62 public key format
@@ -514,7 +518,7 @@ defmodule ExWebauthn.AttestationStatement do
          {:ok, json} <- Jason.decode(decoded) do
       {:ok, json}
     else
-      {:error, :invalid} -> {:error, :invalid_base64}
+      :error -> {:error, :invalid_base64}
       {:error, %Jason.DecodeError{}} -> {:error, :invalid_json}
     end
   end

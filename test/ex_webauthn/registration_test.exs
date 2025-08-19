@@ -200,9 +200,9 @@ defmodule ExWebauthn.RegistrationTest do
     test "validates client data JSON structure" do
       options = create_test_options()
 
-      # Invalid JSON
+      # Invalid JSON (base64url encoded)
       response = %{
-        "clientDataJSON" => "invalid json",
+        "clientDataJSON" => Base.url_encode64("invalid json", padding: false),
         "attestationObject" => create_test_attestation_object()
       }
 
@@ -217,7 +217,7 @@ defmodule ExWebauthn.RegistrationTest do
       client_data = create_test_client_data(%{"type" => "webauthn.get"})
 
       response = %{
-        "clientDataJSON" => Jason.encode!(client_data),
+        "clientDataJSON" => Base.url_encode64(Jason.encode!(client_data), padding: false),
         "attestationObject" => create_test_attestation_object()
       }
 
@@ -237,7 +237,7 @@ defmodule ExWebauthn.RegistrationTest do
         })
 
       response = %{
-        "clientDataJSON" => Jason.encode!(client_data),
+        "clientDataJSON" => Base.url_encode64(Jason.encode!(client_data), padding: false),
         "attestationObject" => create_test_attestation_object()
       }
 
@@ -256,7 +256,7 @@ defmodule ExWebauthn.RegistrationTest do
         })
 
       response = %{
-        "clientDataJSON" => Jason.encode!(client_data),
+        "clientDataJSON" => Base.url_encode64(Jason.encode!(client_data), padding: false),
         "attestationObject" => create_test_attestation_object()
       }
 
@@ -296,8 +296,8 @@ defmodule ExWebauthn.RegistrationTest do
       "attStmt" => %{}
     }
 
-    {:ok, encoded} = ExWebauthn.CBOR.encode_attestation_object(attestation_map)
-    encoded
+    {:ok, encoded} = ExWebauthn.CBORUtils.encode_attestation_object(attestation_map)
+    Base.url_encode64(encoded, padding: false)
   end
 
   defp create_test_auth_data do
@@ -324,7 +324,7 @@ defmodule ExWebauthn.RegistrationTest do
       -3 => :crypto.strong_rand_bytes(32)
     }
 
-    {:ok, encoded_key} = ExWebauthn.CBOR.encode_credential_public_key(public_key)
+    {:ok, encoded_key} = ExWebauthn.CBORUtils.encode_credential_public_key(public_key)
 
     rp_id_hash <>
       <<flags>> <>

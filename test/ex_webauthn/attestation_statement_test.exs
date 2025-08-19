@@ -95,7 +95,7 @@ defmodule ExWebauthn.AttestationStatementTest do
         key_data::binary>> = remaining
 
       # Parse the COSE public key to get the coordinates for U2F format
-      {:ok, %{-2 => x, -3 => y}} = ExWebauthn.CBOR.decode_credential_public_key(key_data)
+      {:ok, %{-2 => x, -3 => y}} = ExWebauthn.CBORUtils.decode_credential_public_key(key_data)
       # Convert to raw ANSI X9.62 public key format as per WebAuthn spec § 8.6
       public_key_u2f = <<0x04>> <> x <> y
 
@@ -174,7 +174,7 @@ defmodule ExWebauthn.AttestationStatementTest do
       -3 => :crypto.strong_rand_bytes(32)
     }
 
-    {:ok, encoded_key} = ExWebauthn.CBOR.encode_credential_public_key(public_key)
+    {:ok, encoded_key} = ExWebauthn.CBORUtils.encode_credential_public_key(public_key)
 
     rp_id_hash <>
       <<flags>> <>
@@ -212,7 +212,7 @@ defmodule ExWebauthn.AttestationStatementTest do
       -3 => y
     }
 
-    {:ok, encoded_key} = ExWebauthn.CBOR.encode_credential_public_key(public_key)
+    {:ok, encoded_key} = ExWebauthn.CBORUtils.encode_credential_public_key(public_key)
 
     auth_data =
       rp_id_hash <>

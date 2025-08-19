@@ -1,0 +1,55 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* This file is for your main application CSS */
+
+/* Phoenix LiveView loading classes */
+.phx-click-loading {
+  opacity: 0.5;
+  transition: opacity 200ms;
+}
+
+.phx-submit-loading {
+  opacity: 0.5;
+  transition: opacity 200ms;
+}
+
+.phx-change-loading {
+  opacity: 0.5;
+  transition: opacity 200ms;
+}
+
+/* Custom styles for the demo */
+.btn {
+  @apply inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2;
+}
+
+.btn-primary {
+  @apply bg-indigo-600 text-white hover:bg-indigo-700 focus:ring-indigo-500;
+}
+
+.btn-ghost {
+  @apply bg-transparent text-gray-600 hover:bg-gray-100 hover:text-gray-900 border-gray-300;
+}
+
+.alert {
+  @apply p-4 rounded-md;
+}
+
+.alert-error {
+  @apply bg-red-50 text-red-700 border border-red-200;
+}
+
+.alert-info {
+  @apply bg-blue-50 text-blue-700 border border-blue-200;
+}
+
+/* Form styling */
+.form-input {
+  @apply block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm;
+}
+
+.form-label {
+  @apply block text-sm font-medium text-gray-700;
+}

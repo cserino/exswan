@@ -31,6 +31,24 @@ defmodule ExWebauthn.Assertion do
             user_verification: String.t() | nil,
             extensions: map() | nil
           }
+
+    def to_json(%__MODULE__{} = options) do
+      %{
+        "challenge" => Base.url_encode64(options.challenge, padding: false),
+        "timeout" => options.timeout,
+        "rpId" => options.rp_id,
+        "allowCredentials" => options.allow_credentials,
+        "userVerification" => options.user_verification,
+        "extensions" => options.extensions
+      }
+      |> remove_nil_values()
+    end
+
+    defp remove_nil_values(map) when is_map(map) do
+      map
+      |> Enum.reject(fn {_key, value} -> is_nil(value) end)
+      |> Enum.into(%{})
+    end
   end
 
   defmodule Response do
@@ -95,5 +113,16 @@ defmodule ExWebauthn.Assertion do
             signature: binary(),
             user_handle: binary() | nil
           }
+  end
+end
+
+defimpl Jason.Encoder, for: ExWebauthn.Assertion.RequestOptions do
+  alias ExWebauthn.Assertion.RequestOptions
+
+  def encode(value, opts) do
+    Jason.Encode.map(
+      RequestOptions.to_json(value),
+      opts
+    )
   end
 end

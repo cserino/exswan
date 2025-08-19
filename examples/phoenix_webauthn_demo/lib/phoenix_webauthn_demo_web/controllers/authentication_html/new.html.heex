@@ -1,0 +1,78 @@
+<div class="mx-auto max-w-sm">
+  <.header class="text-center">
+    Sign In
+    <:subtitle>Use your passkey for secure, passwordless access</:subtitle>
+  </.header>
+
+  <div class="mt-8 space-y-4">
+    <div id="webauthn-status" class="hidden">
+      <div class="rounded-md bg-blue-50 p-4">
+        <div class="flex">
+          <div class="ml-3">
+            <p class="text-sm text-blue-700" id="webauthn-message">
+              Please use your passkey to sign in...
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="webauthn-error" class="hidden">
+      <div class="rounded-md bg-red-50 p-4">
+        <div class="flex">
+          <div class="ml-3">
+            <p class="text-sm text-red-700" id="webauthn-error-message">
+              An error occurred
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+<!-- Usernameless authentication -->
+    <button
+      id="signin-passkey"
+      class="btn btn-primary w-full"
+    >
+      Sign In with Passkey
+    </button>
+
+    <div class="relative">
+      <div class="absolute inset-0 flex items-center">
+        <div class="w-full border-t border-gray-300" />
+      </div>
+      <div class="relative flex justify-center text-sm">
+        <span class="bg-white px-2 text-gray-500">Or sign in with email</span>
+      </div>
+    </div>
+    
+<!-- Email-based authentication -->
+    <form id="email-signin-form" class="space-y-4">
+      <div>
+        <label for="email" class="sr-only">Email address</label>
+        <input
+          id="email"
+          name="email"
+          type="email"
+          autocomplete="email"
+          required
+          class="form-input"
+          placeholder="Email address"
+        />
+      </div>
+      <button
+        type="submit"
+        class="btn btn-ghost w-full"
+      >
+        Sign In with Email + Passkey
+      </button>
+    </form>
+
+    <p class="text-center text-sm mt-4">
+      Don't have an account?
+      <.link navigate={~p"/register"} class="font-semibold text-brand hover:underline">
+        Create one now
+      </.link>
+    </p>
+  </div>
+</div>

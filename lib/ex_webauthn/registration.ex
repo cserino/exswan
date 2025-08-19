@@ -28,21 +28,31 @@ defmodule ExWebauthn.Registration do
       {:ok, credential} = ExWebauthn.Registration.verify_creation(response, options, origin)
   """
 
-  alias ExWebauthn.{Attestation, AttestationStatement, CBOR, Credential, Validator}
+  alias ExWebauthn.{Attestation, AttestationStatement, CBORUtils, Common, Credential, Validator}
 
+  # Reference: vendor/SimpleWebAuthn/packages/server/src/registration/generateRegistrationOptions.ts:22-43
+  # Supported crypto algo identifiers - prioritizing EdDSA for better security
   @default_algorithms [
-    # ES256
+    # EdDSA (prioritized by SimpleWebAuthn for better security)
+    %Credential.Parameters{type: :public_key, alg: -8},
+    # ES256 (ECDSA w/ SHA-256)
     %Credential.Parameters{type: :public_key, alg: -7},
-    # ES384
-    %Credential.Parameters{type: :public_key, alg: -35},
-    # ES512
+    # ES512 (ECDSA w/ SHA-512)
     %Credential.Parameters{type: :public_key, alg: -36},
-    # RS256
+    # PS256 (RSASSA-PSS w/ SHA-256)
+    %Credential.Parameters{type: :public_key, alg: -37},
+    # PS384 (RSASSA-PSS w/ SHA-384)
+    %Credential.Parameters{type: :public_key, alg: -38},
+    # PS512 (RSASSA-PSS w/ SHA-512)
+    %Credential.Parameters{type: :public_key, alg: -39},
+    # RS256 (RSASSA-PKCS1-v1_5 w/ SHA-256)
     %Credential.Parameters{type: :public_key, alg: -257},
-    # RS384
+    # RS384 (RSASSA-PKCS1-v1_5 w/ SHA-384)
     %Credential.Parameters{type: :public_key, alg: -258},
-    # RS512
-    %Credential.Parameters{type: :public_key, alg: -259}
+    # RS512 (RSASSA-PKCS1-v1_5 w/ SHA-512)
+    %Credential.Parameters{type: :public_key, alg: -259},
+    # RS1 (RSASSA-PKCS1-v1_5 w/ SHA-1) - deprecated, here for legacy support
+    %Credential.Parameters{type: :public_key, alg: -65_535}
   ]
 
   @doc """
@@ -86,6 +96,16 @@ defmodule ExWebauthn.Registration do
     authenticator_selection = Keyword.get(opts, :authenticator_selection)
     extensions = Keyword.get(opts, :extensions)
 
+    # Reference: vendor/SimpleWebAuthn/packages/server/src/registration/generateRegistrationOptions.ts:189-203
+    # Map authenticator preference to hints for WebAuthn L3 compatibility
+    preferred_authenticator_type = Keyword.get(opts, :preferred_authenticator_type)
+
+    {hints, updated_authenticator_selection} =
+      generate_hints_and_update_selection(
+        preferred_authenticator_type,
+        authenticator_selection
+      )
+
     creation_options = %Attestation.CreationOptions{
       rp: rp,
       user: user,
@@ -93,9 +113,10 @@ defmodule ExWebauthn.Registration do
       pub_key_cred_params: algorithms,
       timeout: timeout,
       exclude_credentials: exclude_credentials,
-      authenticator_selection: authenticator_selection,
+      authenticator_selection: updated_authenticator_selection,
       attestation: attestation,
-      extensions: extensions
+      extensions: extensions,
+      hints: hints
     }
 
     case Validator.validate_creation_options(creation_options) do
@@ -114,7 +135,7 @@ defmodule ExWebauthn.Registration do
 
   - `response` - Raw attestation response from client
   - `options` - Creation options used for the registration
-  - `origin` - Expected origin for the ceremony
+  - `origin` - Expected origin(s) for the ceremony
 
   ## Returns
 
@@ -132,12 +153,17 @@ defmodule ExWebauthn.Registration do
   @spec verify_creation(
           map(),
           Attestation.CreationOptions.t(),
-          String.t()
+          String.t() | [String.t()]
         ) :: {:ok, Credential.t()} | {:error, atom()}
-  def verify_creation(response, %Attestation.CreationOptions{} = options, origin) do
+
+  # Handle challenge verifier function
+  def verify_creation(response, options, origin) when not is_list(origin),
+    do: verify_creation(response, options, [origin])
+
+  def verify_creation(response, %Attestation.CreationOptions{} = options, origins) do
     with :ok <- validate_response_structure(response),
          {:ok, _client_data} <-
-           parse_and_verify_client_data(response["clientDataJSON"], options.challenge, origin),
+           parse_and_verify_client_data(response["clientDataJSON"], options.challenge, origins),
          {:ok, attestation_object} <- parse_attestation_object(response["attestationObject"]),
          :ok <- verify_rp_id_hash(attestation_object["authData"], options.rp.id),
          {:ok, authenticator_data} <- parse_authenticator_data(attestation_object["authData"]),
@@ -152,7 +178,7 @@ defmodule ExWebauthn.Registration do
            ) do
       credential = %Credential{
         type: :public_key,
-        id: credential_data.credential_id,
+        id: Base.url_encode64(credential_data.credential_id, padding: false),
         # Not stored - kept on authenticator
         private_key: nil,
         public_key: credential_data.credential_public_key,
@@ -189,22 +215,84 @@ defmodule ExWebauthn.Registration do
       },
       "challenge" => Base.url_encode64(options.challenge, padding: false),
       "pubKeyCredParams" =>
-        Enum.map(options.pub_key_cred_params, fn param ->
-          %{
-            "type" => "public-key",
-            "alg" => param.alg
-          }
-        end),
+        Enum.map(options.pub_key_cred_params, &Credential.Parameters.to_json/1),
       "timeout" => options.timeout,
       "excludeCredentials" => format_exclude_credentials(options.exclude_credentials),
       "authenticatorSelection" => format_authenticator_selection(options.authenticator_selection),
       "attestation" => options.attestation,
-      "extensions" => options.extensions
+      "extensions" => options.extensions,
+      "hints" => options.hints
     }
     |> remove_nil_values()
   end
 
   # Private functions
+
+  defp format_exclude_credentials(nil), do: nil
+
+  defp format_exclude_credentials(credentials) when is_list(credentials) do
+    Enum.map(credentials, &Credential.Descriptor.to_json/1)
+  end
+
+  defp format_authenticator_selection(nil), do: nil
+
+  defp format_authenticator_selection(selection) do
+    %{
+      "authenticatorAttachment" => Map.get(selection, :authenticator_attachment),
+      "residentKey" => Map.get(selection, :resident_key, "preferred"),
+      "requireResidentKey" => Map.get(selection, :require_resident_key),
+      "userVerification" => Map.get(selection, :user_verification, "preferred")
+    }
+    |> remove_nil_values()
+  end
+
+  defp remove_nil_values(map) when is_map(map) do
+    map
+    |> Enum.reject(fn {_key, value} -> is_nil(value) end)
+    |> Enum.into(%{})
+  end
+
+  # Reference: vendor/SimpleWebAuthn/packages/server/src/registration/generateRegistrationOptions.ts:189-203
+  # Map authenticator preference to hints and update authenticator selection for backwards compatibility
+  defp generate_hints_and_update_selection(nil, authenticator_selection) do
+    {nil, authenticator_selection}
+  end
+
+  defp generate_hints_and_update_selection(preferred_type, authenticator_selection) do
+    case preferred_type do
+      "securityKey" ->
+        hints = ["security-key"]
+
+        updated_selection =
+          update_authenticator_attachment(authenticator_selection, "cross-platform")
+
+        {hints, updated_selection}
+
+      "localDevice" ->
+        hints = ["client-device"]
+        updated_selection = update_authenticator_attachment(authenticator_selection, "platform")
+        {hints, updated_selection}
+
+      "remoteDevice" ->
+        hints = ["hybrid"]
+
+        updated_selection =
+          update_authenticator_attachment(authenticator_selection, "cross-platform")
+
+        {hints, updated_selection}
+
+      _ ->
+        {nil, authenticator_selection}
+    end
+  end
+
+  defp update_authenticator_attachment(nil, attachment) do
+    %{authenticator_attachment: attachment}
+  end
+
+  defp update_authenticator_attachment(selection, attachment) when is_map(selection) do
+    Map.put(selection, :authenticator_attachment, attachment)
+  end
 
   defp validate_response_structure(response) when is_map(response) do
     required_fields = ["clientDataJSON", "attestationObject"]
@@ -217,24 +305,21 @@ defmodule ExWebauthn.Registration do
 
   defp validate_response_structure(_), do: {:error, :invalid_response_format}
 
-  defp parse_and_verify_client_data(client_data_json, challenge, origin)
-       when is_binary(client_data_json) do
-    with {:ok, client_data} <- Jason.decode(client_data_json),
-         :ok <- verify_client_data_type(client_data["type"]),
-         :ok <- verify_challenge(client_data["challenge"], challenge),
-         :ok <- verify_origin(client_data["origin"], origin) do
+  defp parse_and_verify_client_data(client_data_base64, challenge, origins)
+       when is_binary(client_data_base64) do
+    with {:ok, {client_data, _client_data_json}} <-
+           Common.parse_client_data(client_data_base64, "webauthn.create"),
+         :ok <- Common.verify_challenge(client_data["challenge"], challenge),
+         :ok <- Common.verify_origin(client_data["origin"], origins) do
       {:ok, client_data}
-    else
-      {:error, %Jason.DecodeError{}} -> {:error, :invalid_client_data_json}
-      error -> error
     end
   end
 
   defp parse_attestation_object(attestation_object_bytes)
        when is_binary(attestation_object_bytes) do
-    case CBOR.decode_attestation_object(attestation_object_bytes) do
+    case CBORUtils.decode_attestation_object_from_base64(attestation_object_bytes) do
       {:ok, attestation_object} ->
-        case CBOR.validate_attestation_object(attestation_object) do
+        case CBORUtils.validate_attestation_object(attestation_object) do
           :ok -> {:ok, attestation_object}
           error -> error
         end
@@ -244,19 +329,15 @@ defmodule ExWebauthn.Registration do
     end
   end
 
-  defp verify_rp_id_hash(auth_data_bytes, rp_id) when is_binary(auth_data_bytes) do
+  defp verify_rp_id_hash(%CBOR.Tag{tag: :bytes, value: auth_data_bytes}, rp_id)
+       when is_binary(auth_data_bytes) do
     # First 32 bytes of authenticator data is RP ID hash
     <<rp_id_hash::binary-size(32), _rest::binary>> = auth_data_bytes
-    expected_hash = :crypto.hash(:sha256, rp_id)
-
-    if rp_id_hash == expected_hash do
-      :ok
-    else
-      {:error, :rp_id_hash_mismatch}
-    end
+    Common.verify_rp_id_hash(rp_id_hash, rp_id)
   end
 
-  defp parse_authenticator_data(auth_data_bytes) when is_binary(auth_data_bytes) do
+  defp parse_authenticator_data(%CBOR.Tag{tag: :bytes, value: auth_data_bytes})
+       when is_binary(auth_data_bytes) do
     # Parse authenticator data according to WebAuthn spec
     <<
       rp_id_hash::binary-size(32),
@@ -265,14 +346,26 @@ defmodule ExWebauthn.Registration do
       remaining::binary
     >> = auth_data_bytes
 
+    # Reference: vendor/SimpleWebAuthn/packages/server/src/helpers/parseAuthenticatorData.ts:28-38
+    # Bit positions can be referenced here: https://www.w3.org/TR/webauthn-2/#flags
+    # UP (bit 0) - User Presence
     user_present = (flags &&& 0x01) != 0
+    # UV (bit 2) - User Verified
     user_verified = (flags &&& 0x04) != 0
+    # BE (bit 3) - Backup Eligibility
+    backup_eligible = (flags &&& 0x08) != 0
+    # BS (bit 4) - Backup State
+    backup_state = (flags &&& 0x10) != 0
+    # AT (bit 6) - Attested Credential Data Present
     attested_cred_data_included = (flags &&& 0x40) != 0
+    # ED (bit 7) - Extension Data Present
     extension_data_included = (flags &&& 0x80) != 0
 
     flags_struct = %Attestation.Flags{
       user_present: user_present,
       user_verified: user_verified,
+      backup_eligible: backup_eligible,
+      backup_state: backup_state,
       attested_credential_data_included: attested_cred_data_included,
       extension_data_included: extension_data_included
     }
@@ -286,7 +379,7 @@ defmodule ExWebauthn.Registration do
 
     extensions =
       if extension_data_included and extensions_data do
-        case CBOR.decode_extensions(extensions_data) do
+        case CBORUtils.decode_extensions(extensions_data) do
           {:ok, ext} -> ext
           _ -> nil
         end
@@ -313,24 +406,25 @@ defmodule ExWebauthn.Registration do
       remaining::binary
     >> = data
 
+    # TODO: clean this up
     # Parse credential public key (CBOR-encoded COSE key)
     {credential_public_key, extensions_data} =
       if extension_data_included do
         # Need to parse CBOR to find where public key ends and extensions begin
-        case CBOR.decode_credential_public_key(remaining) do
+        case CBORUtils.decode_credential_public_key(remaining) do
           {:ok, public_key} ->
             # Calculate size of CBOR-encoded public key
-            {:ok, encoded_key} = CBOR.encode_credential_public_key(public_key)
+            {:ok, encoded_key} = CBORUtils.encode_credential_public_key(public_key)
             key_size = byte_size(encoded_key)
             <<_key::binary-size(key_size), ext_data::binary>> = remaining
-            {public_key, ext_data}
+            {CBORUtils.untag_decoded_cbor_data(public_key), ext_data}
 
           _ ->
             {%{}, remaining}
         end
       else
-        case CBOR.decode_credential_public_key(remaining) do
-          {:ok, public_key} -> {public_key, nil}
+        case CBORUtils.decode_credential_public_key(remaining) do
+          {:ok, public_key} -> {CBORUtils.untag_decoded_cbor_data(public_key), nil}
           _ -> {%{}, nil}
         end
       end
@@ -345,12 +439,8 @@ defmodule ExWebauthn.Registration do
     {attested_credential_data, extensions_data}
   end
 
-  defp verify_user_presence(%Attestation.AuthenticatorData{flags: flags}) do
-    if flags.user_present do
-      :ok
-    else
-      {:error, :user_not_present}
-    end
+  defp verify_user_presence(authenticator_data) do
+    Common.verify_user_presence(authenticator_data)
   end
 
   defp extract_credential_data(%Attestation.AuthenticatorData{attested_credential_data: nil}) do
@@ -370,64 +460,13 @@ defmodule ExWebauthn.Registration do
     AttestationStatement.verify(fmt, att_stmt, auth_data, client_data_hash)
   end
 
-  defp compute_client_data_hash(client_data_json) do
-    hash = :crypto.hash(:sha256, client_data_json)
-    {:ok, hash}
-  end
+  defp compute_client_data_hash(client_data_base64) do
+    case Base.url_decode64(client_data_base64, padding: false) do
+      {:ok, client_data_json} ->
+        Common.compute_client_data_hash(client_data_json)
 
-  defp verify_client_data_type("webauthn.create"), do: :ok
-  defp verify_client_data_type(_), do: {:error, :invalid_client_data_type}
-
-  defp verify_challenge(received_challenge, expected_challenge)
-       when is_binary(received_challenge) do
-    case Base.url_decode64(received_challenge, padding: false) do
-      {:ok, decoded_challenge} ->
-        if decoded_challenge == expected_challenge do
-          :ok
-        else
-          {:error, :challenge_mismatch}
-        end
-
-      _ ->
-        {:error, :invalid_challenge_encoding}
+      :error ->
+        {:error, :invalid_client_data_encoding}
     end
-  end
-
-  defp verify_origin(received_origin, expected_origin) do
-    if received_origin == expected_origin do
-      :ok
-    else
-      {:error, :origin_mismatch}
-    end
-  end
-
-  defp format_exclude_credentials(nil), do: nil
-
-  defp format_exclude_credentials(credentials) when is_list(credentials) do
-    Enum.map(credentials, fn %Credential.Descriptor{} = desc ->
-      %{
-        "type" => "public-key",
-        "id" => Base.url_encode64(desc.id, padding: false),
-        "transports" => desc.transports
-      }
-    end)
-  end
-
-  defp format_authenticator_selection(nil), do: nil
-
-  defp format_authenticator_selection(%Attestation.AuthenticatorSelection{} = selection) do
-    %{
-      "authenticatorAttachment" => selection.authenticator_attachment,
-      "residentKey" => selection.resident_key,
-      "requireResidentKey" => selection.require_resident_key,
-      "userVerification" => selection.user_verification
-    }
-    |> remove_nil_values()
-  end
-
-  defp remove_nil_values(map) when is_map(map) do
-    map
-    |> Enum.reject(fn {_key, value} -> is_nil(value) end)
-    |> Enum.into(%{})
   end
 end

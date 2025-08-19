@@ -114,16 +114,6 @@ defmodule ExWebauthn do
   end
 
   @doc """
-  Convenience function for converting options to JSON format.
-
-  Delegates to `ExWebauthn.Registration.options_to_json/1`.
-  """
-  @spec options_to_json(Attestation.CreationOptions.t()) :: map()
-  def options_to_json(%Attestation.CreationOptions{} = options) do
-    Registration.options_to_json(options)
-  end
-
-  @doc """
   Convenience function for generating authentication options.
 
   Delegates to `ExWebauthn.Authentication.generate_request_options/2`.
@@ -143,6 +133,16 @@ defmodule ExWebauthn do
           {:ok, Assertion.Result.t()} | {:error, atom()}
   def verify_authentication(response, options, credential, origin) do
     Authentication.verify_assertion(response, options, credential, origin)
+  end
+
+  @doc """
+  Convenience function for converting registration options to JSON format.
+
+  Delegates to `ExWebauthn.Registration.options_to_json/1`.
+  """
+  @spec options_to_json(Attestation.CreationOptions.t()) :: map()
+  def options_to_json(%Attestation.CreationOptions{} = options) do
+    Registration.options_to_json(options)
   end
 
   @doc """

@@ -50,7 +50,7 @@ defmodule ExWebauthn.MixProject do
   defp docs do
     [
       main: "ExWebauthn",
-      extras: ["README.md", "docs/plan.md"]
+      extras: ["README.md"]
     ]
   end
 end

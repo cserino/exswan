@@ -1,0 +1,165 @@
+<div class="max-w-4xl mx-auto">
+  <.header>
+    Dashboard
+    <:subtitle>Welcome back, {@user.display_name || @user.email}!</:subtitle>
+    <:actions>
+      <.link
+        navigate={~p"/signout"}
+        method="delete"
+        class="text-sm font-semibold text-gray-600 hover:text-gray-900"
+      >
+        Sign Out
+      </.link>
+    </:actions>
+  </.header>
+
+  <div class="mt-8">
+    <div class="bg-white shadow rounded-lg">
+      <div class="px-4 py-5 sm:p-6">
+        <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">
+          Your Passkeys
+        </h3>
+
+        <div class="space-y-4">
+          <%= if Enum.empty?(@credentials) do %>
+            <div class="text-center py-8">
+              <svg
+                class="mx-auto h-12 w-12 text-gray-400"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                aria-hidden="true"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M15 7a2 2 0 012 2m4 0a6 6 0 01-6 6c-1.105 0-2.11-.476-2.813-1.237L9.5 17.5l-2.1 2.1c-.892.892-2.342.892-3.234 0s-.892-2.342 0-3.234L6.8 13.8c-.761-.703-1.237-1.708-1.237-2.813a6 6 0 016-6 2 2 0 012 2z"
+                />
+              </svg>
+              <h3 class="mt-2 text-sm font-medium text-gray-900">No passkeys</h3>
+              <p class="mt-1 text-sm text-gray-500">
+                You haven't added any passkeys yet. Add one for secure, passwordless access.
+              </p>
+              <div class="mt-6">
+                <button
+                  id="add-passkey"
+                  type="button"
+                  class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                  data-email={@user.email}
+                >
+                  Add Passkey
+                </button>
+              </div>
+            </div>
+          <% else %>
+            <%= for credential <- @credentials do %>
+              <div class="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+                <div class="flex items-center">
+                  <div class="flex-shrink-0">
+                    <svg
+                      class="h-8 w-8 text-green-500"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="15 7a2 2 0 012 2m4 0a6 6 0 01-6 6c-1.105 0-2.11-.476-2.813-1.237L9.5 17.5l-2.1 2.1c-.892.892-2.342.892-3.234 0s-.892-2.342 0-3.234L6.8 13.8c-.761-.703-1.237-1.708-1.237-2.813a6 6 0 016-6 2 2 0 012 2z"
+                      />
+                    </svg>
+                  </div>
+                  <div class="ml-4">
+                    <div class="text-sm font-medium text-gray-900">
+                      {credential.name || "Unnamed Passkey"}
+                    </div>
+                    <div class="text-sm text-gray-500">
+                      <%= if credential.last_used_at do %>
+                        Last used: {Calendar.strftime(
+                          credential.last_used_at,
+                          "%B %d, %Y at %I:%M %p"
+                        )}
+                      <% else %>
+                        Never used
+                      <% end %>
+                    </div>
+                    <div class="text-xs text-gray-400 mt-1">
+                      Sign count: {credential.sign_count}
+                      <%= if credential.backup_eligible do %>
+                        • Backup eligible
+                      <% end %>
+                    </div>
+                  </div>
+                </div>
+                <div class="flex items-center space-x-2">
+                  <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                    Active
+                  </span>
+                </div>
+              </div>
+            <% end %>
+
+            <div class="mt-6">
+              <button
+                id="add-passkey"
+                type="button"
+                class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                data-email={@user.email}
+              >
+                Add Another Passkey
+              </button>
+            </div>
+          <% end %>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mt-8">
+    <div class="bg-white shadow rounded-lg">
+      <div class="px-4 py-5 sm:p-6">
+        <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">
+          Account Information
+        </h3>
+        <dl class="space-y-4">
+          <div>
+            <dt class="text-sm font-medium text-gray-500">Email</dt>
+            <dd class="text-sm text-gray-900">{@user.email}</dd>
+          </div>
+          <div>
+            <dt class="text-sm font-medium text-gray-500">Display Name</dt>
+            <dd class="text-sm text-gray-900">{@user.display_name || "Not set"}</dd>
+          </div>
+          <div>
+            <dt class="text-sm font-medium text-gray-500">Member Since</dt>
+            <dd class="text-sm text-gray-900">
+              {Calendar.strftime(@user.inserted_at, "%B %d, %Y")}
+            </dd>
+          </div>
+        </dl>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div
+  id="webauthn-status"
+  class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50"
+>
+  <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+    <div class="mt-3 text-center">
+      <h3 class="text-lg font-medium text-gray-900" id="webauthn-title">Adding Passkey</h3>
+      <div class="mt-2 px-7 py-3">
+        <p class="text-sm text-gray-500" id="webauthn-message">
+          Please use your device's biometric authentication or security key...
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  window.userEmail = '<%= @user.email %>';
+</script>

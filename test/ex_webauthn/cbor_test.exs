@@ -1,6 +1,6 @@
 defmodule ExWebauthn.CBORTest do
   use ExUnit.Case
-  alias ExWebauthn.CBOR
+  alias ExWebauthn.CBORUtils, as: CBOR
 
   describe "attestation object encoding/decoding" do
     test "encodes and decodes attestation object" do

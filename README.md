@@ -149,29 +149,6 @@ config :ex_webauthn,
   challenge_size: 32
 ```
 
-## Project Status
-
-ExWebauthn is currently under active development following a phased approach:
-
-- ✅ **Phase 1**: Core Infrastructure (Complete)
-
-  - Data structures and validation
-  - CBOR encoding/decoding
-  - Basic API foundation
-
-- 🚧 **Phase 2**: Registration Flow (In Progress)
-
-  - Credential creation options
-  - Attestation processing
-  - Registration verification
-
-- 📋 **Phase 3**: Authentication Flow (Planned)
-  - Assertion options generation
-  - Authentication verification
-  - Session management
-
-See [docs/plan.md](docs/plan.md) for the complete development roadmap.
-
 ## Security Considerations
 
 - Always validate origins against your allowlist

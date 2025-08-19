@@ -1,0 +1,58 @@
+<div class="mx-auto max-w-sm">
+  <.header class="text-center">
+    Create Account
+    <:subtitle>Register with just your email to get started</:subtitle>
+  </.header>
+
+  <.form :let={f} for={@changeset} action={~p"/register"} class="space-y-4">
+    <%= if @changeset.action do %>
+      <div class="alert alert-error">
+        <span>Oops, something went wrong! Please check the errors below.</span>
+      </div>
+    <% end %>
+
+    <div>
+      <label for={f[:email].id} class="form-label">Email</label>
+      <input
+        type="email"
+        name={f[:email].name}
+        id={f[:email].id}
+        value={f[:email].value}
+        class="form-input"
+        required
+      />
+      <%= if f[:email].errors != [] do %>
+        <p class="text-red-600 text-sm mt-1">
+          {Enum.join(Enum.map(f[:email].errors, &translate_error/1), ", ")}
+        </p>
+      <% end %>
+    </div>
+
+    <div>
+      <label for={f[:display_name].id} class="form-label">Display Name</label>
+      <input
+        type="text"
+        name={f[:display_name].name}
+        id={f[:display_name].id}
+        value={f[:display_name].value}
+        class="form-input"
+      />
+      <%= if f[:display_name].errors != [] do %>
+        <p class="text-red-600 text-sm mt-1">
+          {Enum.join(Enum.map(f[:display_name].errors, &translate_error/1), ", ")}
+        </p>
+      <% end %>
+    </div>
+
+    <button type="submit" class="btn btn-primary w-full">
+      Create Account
+    </button>
+  </.form>
+
+  <p class="text-center text-sm mt-4">
+    Already have an account?
+    <.link navigate={~p"/signin"} class="font-semibold text-primary hover:underline">
+      Sign in
+    </.link>
+  </p>
+</div>

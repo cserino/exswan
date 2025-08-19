@@ -6,6 +6,8 @@ defmodule ExWebauthn.Crypto do
   and other cryptographic operations required by the WebAuthn specification.
   """
 
+  require Logger
+
   @doc """
   Verifies a digital signature using the provided public key and data.
 
@@ -28,49 +30,10 @@ defmodule ExWebauthn.Crypto do
   """
   @spec verify_signature(binary(), binary(), map(), integer()) :: :ok | {:error, atom()}
   def verify_signature(signature, signed_data, public_key_map, algorithm) do
-    case extract_public_key(public_key_map, algorithm) do
-      {:ok, public_key} ->
-        verify_with_algorithm(signature, signed_data, public_key, algorithm)
-
-      error ->
-        error
-    end
-  end
-
-  @doc """
-  Extracts the public key from a COSE public key map.
-
-  Converts COSE key parameters to Erlang's :public_key format.
-  """
-  @spec extract_public_key(map(), integer()) :: {:ok, term()} | {:error, atom()}
-  def extract_public_key(public_key_map, algorithm) do
-    case algorithm do
-      # ES256 (ECDSA w/ SHA-256)
-      -7 ->
-        extract_ec_public_key(public_key_map, :secp256r1)
-
-      # ES384 (ECDSA w/ SHA-384)
-      -35 ->
-        extract_ec_public_key(public_key_map, :secp384r1)
-
-      # ES512 (ECDSA w/ SHA-512)
-      -36 ->
-        extract_ec_public_key(public_key_map, :secp521r1)
-
-      # RS256 (RSA PKCS#1 v1.5 w/ SHA-256)
-      -257 ->
-        extract_rsa_public_key(public_key_map)
-
-      # RS384 (RSA PKCS#1 v1.5 w/ SHA-384)
-      -258 ->
-        extract_rsa_public_key(public_key_map)
-
-      # RS512 (RSA PKCS#1 v1.5 w/ SHA-512)
-      -259 ->
-        extract_rsa_public_key(public_key_map)
-
-      _ ->
-        {:error, :unsupported_algorithm}
+    if verify_signature_with_cose(signed_data, signature, public_key_map, algorithm) do
+      :ok
+    else
+      {:error, :signature_verification_failed}
     end
   end
 
@@ -84,109 +47,109 @@ defmodule ExWebauthn.Crypto do
     authenticator_data <> client_data_hash
   end
 
-  # Private functions
+  # COSE crv → OID (for EC2)
+  @crv_oid %{
+    # P-256 / secp256r1
+    1 => {1, 2, 840, 10_045, 3, 1, 7},
+    # P-384 / secp384r1
+    2 => {1, 3, 132, 0, 34},
+    # P-521 / secp521r1
+    3 => {1, 3, 132, 0, 35}
+  }
 
-  defp extract_ec_public_key(public_key_map, curve) do
-    with {:ok, x} <- get_coordinate(public_key_map, -2),
-         {:ok, y} <- get_coordinate(public_key_map, -3) do
-      # Create ECPoint in uncompressed format (0x04 || x || y)
-      point = <<0x04>> <> x <> y
+  # COSE alg → digest (and padding where needed)
+  @alg_digest %{
+    # ES256
+    -7 => {:sha256, :ecdsa},
+    # ES384
+    -35 => {:sha384, :ecdsa},
+    # ES512
+    -36 => {:sha512, :ecdsa},
+    # EdDSA (Ed25519/Ed448)
+    -8 => {:none, :eddsa},
+    # RS256
+    -257 => {:sha256, :rsa_pkcs1},
+    # PS256
+    -37 => {:sha256, :rsa_pss}
+  }
 
-      # Create public key tuple for :public_key module
-      public_key = {
-        {:ECPoint, point},
-        {:namedCurve, curve}
-      }
+  # ---- Public API -----------------------------------------------------------
 
-      {:ok, public_key}
-    else
-      _ -> {:error, :invalid_ec_public_key}
+  @doc """
+  Verify a COSE signature over `msg` using a COSE_Key map (already CBOR-decoded).
+  `sig` is the signature bytes as delivered by COSE (raw r||s for ECDSA; 64B for Ed25519; PKCS#1/RSASSA-PSS for RSA).
+  `alg` is the COSE alg int (e.g. -7 for ES256).
+  """
+  def verify_signature_with_cose(msg, sig, cose_key, alg) when is_map(cose_key) do
+    case Map.get(@alg_digest, alg) do
+      nil ->
+        false
+
+      {digest, kind} ->
+        case cose_to_otp_pubkey(cose_key) do
+          {:error, _} -> false
+          pub -> verify_with_otp_key(msg, sig, pub, digest, kind)
+        end
     end
   end
 
-  defp extract_rsa_public_key(public_key_map) do
-    with {:ok, n} <- get_rsa_param(public_key_map, -1),
-         {:ok, e} <- get_rsa_param(public_key_map, -2) do
-      # Convert binary to integer
-      n_int = :binary.decode_unsigned(n, :big)
-      e_int = :binary.decode_unsigned(e, :big)
-
-      # Create RSA public key tuple
-      public_key = {:RSAPublicKey, n_int, e_int}
-
-      {:ok, public_key}
-    else
-      _ -> {:error, :invalid_rsa_public_key}
-    end
+  defp verify_with_otp_key(msg, sig, pub, digest, kind) do
+    verify_with_digest_and_kind(msg, sig, pub, digest, kind)
+  rescue
+    _ -> false
+  catch
+    _error -> false
   end
 
-  defp get_coordinate(key_map, param) do
-    case Map.get(key_map, param) do
-      coord when is_binary(coord) -> {:ok, coord}
-      _ -> :error
-    end
-  end
+  defp verify_with_digest_and_kind(msg, sig, pub, digest, kind) do
+    {sig1, opts} =
+      case kind do
+        :ecdsa ->
+          # {p1363_to_der(sig), []}
+          {sig, []}
 
-  defp get_rsa_param(key_map, param) do
-    case Map.get(key_map, param) do
-      value when is_binary(value) -> {:ok, value}
-      _ -> :error
-    end
-  end
+        :eddsa ->
+          {sig, []}
 
-  defp verify_with_algorithm(signature, signed_data, public_key, algorithm) do
-    hash_algorithm = get_hash_algorithm(algorithm)
+        :rsa_pss ->
+          {sig, [rsa_padding: :rsa_pkcs1_pss_padding, rsa_mgf1_md: :sha256, rsa_pss_saltlen: 32]}
 
-    try do
-      case algorithm do
-        alg when alg in [-7, -35, -36] ->
-          # ECDSA algorithms
-          verify_ecdsa(signature, signed_data, public_key, hash_algorithm)
-
-        alg when alg in [-257, -258, -259] ->
-          # RSA algorithms
-          verify_rsa(signature, signed_data, public_key, hash_algorithm)
-
-        _ ->
-          {:error, :unsupported_signature_algorithm}
+        :rsa_pkcs1 ->
+          {sig, []}
       end
-    rescue
-      _ -> {:error, :signature_verification_failed}
+
+    case opts do
+      [] -> :public_key.verify(msg, digest, sig1, pub)
+      _ -> :public_key.verify(msg, digest, sig1, pub, opts)
     end
   end
 
-  defp verify_ecdsa(signature, signed_data, public_key, hash_algorithm) do
-    # Hash the signed data
-    hashed_data = :crypto.hash(hash_algorithm, signed_data)
+  # ---- COSE → OTP public key -----------------------------------------------
 
-    # Verify ECDSA signature
-    case :public_key.verify(hashed_data, :ecdsa, signature, public_key) do
-      true -> :ok
-      false -> {:error, :invalid_signature}
+  # EC2 (kty=2): needs {:ECPoint, <<0x04,x,y>>} plus {namedCurve, oid}
+  defp cose_to_otp_pubkey(%{1 => 2, -1 => crv, -2 => x, -3 => y}) do
+    case Map.get(@crv_oid, crv) do
+      nil ->
+        {:error, :unsupported_curve}
+
+      curve_oid ->
+        point = <<4, x::binary, y::binary>>
+        {{:ECPoint, point}, {:namedCurve, curve_oid}}
     end
   end
 
-  defp verify_rsa(signature, signed_data, public_key, hash_algorithm) do
-    # Hash the signed data
-    hashed_data = :crypto.hash(hash_algorithm, signed_data)
-
-    # Verify RSA signature with PKCS#1 v1.5 padding
-    case :public_key.verify(hashed_data, hash_algorithm, signature, public_key) do
-      true -> :ok
-      false -> {:error, :invalid_signature}
-    end
+  # OKP Ed25519 (kty=1): OTP wants {ed_pub, :ed25519, pub}
+  defp cose_to_otp_pubkey(%{1 => 1, -1 => 6, -2 => x}) do
+    {:ed_pub, :ed25519, x}
   end
 
-  # ES256
-  defp get_hash_algorithm(-7), do: :sha256
-  # ES384
-  defp get_hash_algorithm(-35), do: :sha384
-  # ES512
-  defp get_hash_algorithm(-36), do: :sha512
-  # RS256
-  defp get_hash_algorithm(-257), do: :sha256
-  # RS384
-  defp get_hash_algorithm(-258), do: :sha384
-  # RS512
-  defp get_hash_algorithm(-259), do: :sha512
+  # RSA (kty=3): #'RSAPublicKey'{modulus, publicExponent}
+  defp cose_to_otp_pubkey(%{1 => 3, -1 => n, -2 => e}) do
+    n_int = :binary.decode_unsigned(n)
+    e_int = :binary.decode_unsigned(e)
+    {:RSAPublicKey, n_int, e_int}
+  end
+
+  # Fallback for unsupported key types
+  defp cose_to_otp_pubkey(_), do: {:error, :unsupported_key_type}
 end

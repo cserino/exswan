@@ -57,9 +57,11 @@ defmodule ExWebauthn.AuthenticationTest do
     test "converts request options to JSON format" do
       challenge = :crypto.strong_rand_bytes(32)
 
+      raw_id = :crypto.strong_rand_bytes(16)
+
       credential_desc = %Credential.Descriptor{
         type: :public_key,
-        id: :crypto.strong_rand_bytes(16),
+        id: Base.url_encode64(raw_id, padding: false),
         transports: ["usb"]
       }
 
@@ -82,7 +84,7 @@ defmodule ExWebauthn.AuthenticationTest do
 
       [allow_cred] = json["allowCredentials"]
       assert allow_cred["type"] == "public-key"
-      assert allow_cred["id"] == Base.url_encode64(credential_desc.id, padding: false)
+      assert allow_cred["id"] == credential_desc.id
       assert allow_cred["transports"] == ["usb"]
     end
 
@@ -185,7 +187,7 @@ defmodule ExWebauthn.AuthenticationTest do
       }
 
       response = %{
-        "clientDataJSON" => Jason.encode!(client_data),
+        "clientDataJSON" => Base.url_encode64(Jason.encode!(client_data), padding: false),
         "authenticatorData" => Base.url_encode64(<<0::296>>, padding: false),
         "signature" => Base.url_encode64(<<1, 2, 3, 4>>, padding: false)
       }
@@ -204,7 +206,7 @@ defmodule ExWebauthn.AuthenticationTest do
       }
 
       response = %{
-        "clientDataJSON" => Jason.encode!(client_data),
+        "clientDataJSON" => Base.url_encode64(Jason.encode!(client_data), padding: false),
         "authenticatorData" => Base.url_encode64(<<0::296>>, padding: false),
         "signature" => Base.url_encode64(<<1, 2, 3, 4>>, padding: false)
       }
@@ -221,7 +223,7 @@ defmodule ExWebauthn.AuthenticationTest do
       }
 
       response = %{
-        "clientDataJSON" => Jason.encode!(client_data),
+        "clientDataJSON" => Base.url_encode64(Jason.encode!(client_data), padding: false),
         "authenticatorData" => Base.url_encode64(<<0::296>>, padding: false),
         "signature" => Base.url_encode64(<<1, 2, 3, 4>>, padding: false)
       }
@@ -241,7 +243,7 @@ defmodule ExWebauthn.AuthenticationTest do
       short_auth_data = <<0::200>>
 
       response = %{
-        "clientDataJSON" => Jason.encode!(client_data),
+        "clientDataJSON" => Base.url_encode64(Jason.encode!(client_data), padding: false),
         "authenticatorData" => Base.url_encode64(short_auth_data, padding: false),
         "signature" => Base.url_encode64(<<1, 2, 3, 4>>, padding: false)
       }
@@ -265,7 +267,7 @@ defmodule ExWebauthn.AuthenticationTest do
       auth_data = wrong_rp_hash <> <<flags>> <> <<sign_count::32-big>>
 
       response = %{
-        "clientDataJSON" => Jason.encode!(client_data),
+        "clientDataJSON" => Base.url_encode64(Jason.encode!(client_data), padding: false),
         "authenticatorData" => Base.url_encode64(auth_data, padding: false),
         "signature" => Base.url_encode64(<<1, 2, 3, 4>>, padding: false),
         "credentialId" => Base.url_encode64(credential.id, padding: false)
@@ -290,7 +292,7 @@ defmodule ExWebauthn.AuthenticationTest do
       auth_data = rp_hash <> <<flags>> <> <<sign_count::32-big>>
 
       response = %{
-        "clientDataJSON" => Jason.encode!(client_data),
+        "clientDataJSON" => Base.url_encode64(Jason.encode!(client_data), padding: false),
         "authenticatorData" => Base.url_encode64(auth_data, padding: false),
         "signature" => Base.url_encode64(<<1, 2, 3, 4>>, padding: false),
         "credentialId" => Base.url_encode64(credential.id, padding: false)
@@ -316,13 +318,13 @@ defmodule ExWebauthn.AuthenticationTest do
       wrong_credential_id = :crypto.strong_rand_bytes(32)
 
       response = %{
-        "clientDataJSON" => Jason.encode!(client_data),
+        "clientDataJSON" => Base.url_encode64(Jason.encode!(client_data), padding: false),
         "authenticatorData" => Base.url_encode64(auth_data, padding: false),
         "signature" => Base.url_encode64(<<1, 2, 3, 4>>, padding: false),
         "credentialId" => Base.url_encode64(wrong_credential_id, padding: false)
       }
 
-      {:error, :credential_id_mismatch} =
+      {:error, :signature_verification_failed} =
         Authentication.verify_assertion(response, options, credential, "https://example.com")
     end
   end

@@ -30,9 +30,15 @@ defmodule ExWebauthn.Authentication do
       )
   """
 
-  import Bitwise
+  alias ExWebauthn.{Assertion, Attestation, Common, Credential, Crypto, Validator}
 
-  alias ExWebauthn.{Assertion, Attestation, Credential, Crypto, Validator}
+  @type generate_request_options_opts :: [
+          {:challenge, binary()}
+          | {:timeout, pos_integer()}
+          | {:allow_credentials, [Credential.Descriptor.t()]}
+          | {:user_verification, String.t()}
+          | {:extensions, map()}
+       ]
 
   @doc """
   Generates request options for authenticating with a credential.
@@ -63,7 +69,7 @@ defmodule ExWebauthn.Authentication do
         user_verification: "required"
       )
   """
-  @spec generate_request_options(String.t(), keyword()) ::
+  @spec generate_request_options(String.t(), generate_request_options_opts()) ::
           {:ok, Assertion.RequestOptions.t()} | {:error, atom()}
   def generate_request_options(rp_id, opts \\ []) when is_binary(rp_id) do
     challenge = Keyword.get(opts, :challenge, :crypto.strong_rand_bytes(32))
@@ -118,23 +124,23 @@ defmodule ExWebauthn.Authentication do
           map(),
           Assertion.RequestOptions.t(),
           Credential.t(),
-          String.t()
+          String.t() | [String.t()]
         ) :: {:ok, Assertion.Result.t()} | {:error, atom()}
   def verify_assertion(
         response,
         %Assertion.RequestOptions{} = options,
         %Credential{} = credential,
-        origin
+        origins
       ) do
     with :ok <- validate_assertion_response_structure(response),
-         {:ok, _client_data} <-
-           parse_and_verify_client_data(response["clientDataJSON"], options.challenge, origin),
+         {:ok, _client_data, client_data_json} <-
+           parse_and_verify_client_data(response["clientDataJSON"], options.challenge, origins),
          {:ok, authenticator_data} <- parse_authenticator_data(response["authenticatorData"]),
          :ok <- verify_rp_id_hash(authenticator_data.rp_id_hash, options.rp_id),
          :ok <- verify_user_presence(authenticator_data),
          :ok <- verify_user_verification(authenticator_data, options.user_verification),
-         :ok <- verify_credential_id(response["credentialId"], credential.id),
-         {:ok, client_data_hash} <- compute_client_data_hash(response["clientDataJSON"]),
+         # :ok <- verify_credential_id(response["credentialId"], credential.id),
+         {:ok, client_data_hash} <- compute_client_data_hash(client_data_json),
          :ok <-
            verify_assertion_signature(
              response["signature"],
@@ -152,6 +158,8 @@ defmodule ExWebauthn.Authentication do
       }
 
       {:ok, result}
+    else
+      error -> error
     end
   end
 
@@ -171,7 +179,7 @@ defmodule ExWebauthn.Authentication do
       "userVerification" => options.user_verification,
       "extensions" => options.extensions
     }
-    |> remove_nil_values()
+    |> Common.remove_nil_values()
   end
 
   # Private functions
@@ -187,12 +195,12 @@ defmodule ExWebauthn.Authentication do
 
   defp validate_assertion_response_structure(_), do: {:error, :invalid_assertion_response_format}
 
-  defp parse_and_verify_client_data(client_data_json, challenge, origin)
-       when is_binary(client_data_json) do
-    with {:ok, client_data} <- Jason.decode(client_data_json),
-         :ok <- verify_client_data_type(client_data["type"]),
-         :ok <- verify_challenge(client_data["challenge"], challenge),
-         :ok <- verify_origin(client_data["origin"], origin) do
+  defp parse_and_verify_client_data(client_data_base64, challenge, origins)
+       when is_binary(client_data_base64) do
+    with {:ok, {client_data, client_data_json}} <-
+           Common.parse_client_data(client_data_base64, "webauthn.get"),
+         :ok <- Common.verify_challenge(client_data["challenge"], challenge),
+         :ok <- Common.verify_origin(client_data["origin"], origins) do
       client_data_struct = %Assertion.ClientData{
         type: client_data["type"],
         challenge: client_data["challenge"],
@@ -201,66 +209,24 @@ defmodule ExWebauthn.Authentication do
         token_binding: client_data["tokenBinding"]
       }
 
-      {:ok, client_data_struct}
-    else
-      {:error, %Jason.DecodeError{}} -> {:error, :invalid_client_data_json}
-      error -> error
+      {:ok, client_data_struct, client_data_json}
     end
   end
 
   defp parse_authenticator_data(auth_data_b64) when is_binary(auth_data_b64) do
     with {:ok, auth_data_bytes} <- Base.url_decode64(auth_data_b64, padding: false) do
-      if byte_size(auth_data_bytes) < 37 do
-        {:error, :invalid_authenticator_data_length}
-      else
-        <<
-          rp_id_hash::binary-size(32),
-          flags::8,
-          sign_count::32-big,
-          _remaining::binary
-        >> = auth_data_bytes
-
-        user_present = (flags &&& 0x01) != 0
-        user_verified = (flags &&& 0x04) != 0
-
-        flags_struct = %Attestation.Flags{
-          user_present: user_present,
-          user_verified: user_verified,
-          attested_credential_data_included: false,
-          extension_data_included: (flags &&& 0x80) != 0
-        }
-
-        authenticator_data = %Attestation.AuthenticatorData{
-          rp_id_hash: rp_id_hash,
-          flags: flags_struct,
-          sign_count: sign_count,
-          attested_credential_data: nil,
-          extensions: nil
-        }
-
-        {:ok, authenticator_data}
-      end
+      Common.parse_authenticator_data(auth_data_bytes)
     else
       _ -> {:error, :invalid_authenticator_data_encoding}
     end
   end
 
   defp verify_rp_id_hash(received_hash, rp_id) when is_binary(received_hash) do
-    expected_hash = :crypto.hash(:sha256, rp_id)
-
-    if received_hash == expected_hash do
-      :ok
-    else
-      {:error, :rp_id_hash_mismatch}
-    end
+    Common.verify_rp_id_hash(received_hash, rp_id)
   end
 
-  defp verify_user_presence(%Attestation.AuthenticatorData{flags: flags}) do
-    if flags.user_present do
-      :ok
-    else
-      {:error, :user_not_present}
-    end
+  defp verify_user_presence(authenticator_data) do
+    Common.verify_user_presence(authenticator_data)
   end
 
   defp verify_user_verification(%Attestation.AuthenticatorData{flags: flags}, user_verification) do
@@ -277,21 +243,6 @@ defmodule ExWebauthn.Authentication do
     end
   end
 
-  defp verify_credential_id(received_id, expected_id) when is_binary(received_id) do
-    # Decode base64url credential ID
-    case Base.url_decode64(received_id, padding: false) do
-      {:ok, decoded_id} ->
-        if decoded_id == expected_id do
-          :ok
-        else
-          {:error, :credential_id_mismatch}
-        end
-
-      _ ->
-        {:error, :invalid_credential_id_encoding}
-    end
-  end
-
   defp verify_assertion_signature(
          signature_b64,
          authenticator_data_b64,
@@ -299,10 +250,14 @@ defmodule ExWebauthn.Authentication do
          credential
        ) do
     with {:ok, signature} <- decode_signature(signature_b64),
-         {:ok, authenticator_data_raw} <- decode_authenticator_data(authenticator_data_b64),
-         {:ok, public_key_map} <- get_credential_public_key(credential),
-         {:ok, algorithm} <- get_signature_algorithm(public_key_map),
-         signed_data <- Crypto.compute_signed_data(authenticator_data_raw, client_data_hash) do
+         {:ok, authenticator_data_raw} <-
+           decode_authenticator_data(authenticator_data_b64),
+         {:ok, public_key_map} <-
+           get_credential_public_key(credential),
+         {:ok, algorithm} <-
+           get_signature_algorithm(public_key_map),
+         signed_data <-
+           Crypto.compute_signed_data(authenticator_data_raw, client_data_hash) do
       Crypto.verify_signature(signature, signed_data, public_key_map, algorithm)
     else
       error -> error
@@ -352,34 +307,7 @@ defmodule ExWebauthn.Authentication do
   end
 
   defp compute_client_data_hash(client_data_json) do
-    hash = :crypto.hash(:sha256, client_data_json)
-    {:ok, hash}
-  end
-
-  defp verify_client_data_type("webauthn.get"), do: :ok
-  defp verify_client_data_type(_), do: {:error, :invalid_client_data_type}
-
-  defp verify_challenge(received_challenge, expected_challenge)
-       when is_binary(received_challenge) do
-    case Base.url_decode64(received_challenge, padding: false) do
-      {:ok, decoded_challenge} ->
-        if decoded_challenge == expected_challenge do
-          :ok
-        else
-          {:error, :challenge_mismatch}
-        end
-
-      _ ->
-        {:error, :invalid_challenge_encoding}
-    end
-  end
-
-  defp verify_origin(received_origin, expected_origin) do
-    if received_origin == expected_origin do
-      :ok
-    else
-      {:error, :origin_mismatch}
-    end
+    Common.compute_client_data_hash(client_data_json)
   end
 
   defp format_allow_credentials(nil), do: nil
@@ -388,15 +316,9 @@ defmodule ExWebauthn.Authentication do
     Enum.map(credentials, fn %Credential.Descriptor{} = desc ->
       %{
         "type" => "public-key",
-        "id" => Base.url_encode64(desc.id, padding: false),
+        "id" => desc.id,
         "transports" => desc.transports
       }
     end)
-  end
-
-  defp remove_nil_values(map) when is_map(map) do
-    map
-    |> Enum.reject(fn {_key, value} -> is_nil(value) end)
-    |> Enum.into(%{})
   end
 end
