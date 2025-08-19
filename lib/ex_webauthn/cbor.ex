@@ -32,12 +32,10 @@ defmodule ExWebauthn.CBOR do
   """
   @spec encode_attestation_object(map()) :: {:ok, binary()} | {:error, term()}
   def encode_attestation_object(attestation_map) do
-    try do
-      encoded = CBOR.encode(attestation_map)
-      {:ok, encoded}
-    rescue
-      error -> {:error, error}
-    end
+    encoded = CBOR.encode(attestation_map)
+    {:ok, encoded}
+  rescue
+    error -> {:error, error}
   end
 
   @doc """
@@ -70,12 +68,10 @@ defmodule ExWebauthn.CBOR do
   """
   @spec encode_credential_public_key(map()) :: {:ok, binary()} | {:error, term()}
   def encode_credential_public_key(public_key_map) do
-    try do
-      encoded = CBOR.encode(public_key_map)
-      {:ok, encoded}
-    rescue
-      error -> {:error, error}
-    end
+    encoded = CBOR.encode(public_key_map)
+    {:ok, encoded}
+  rescue
+    error -> {:error, error}
   end
 
   @doc """
@@ -94,12 +90,10 @@ defmodule ExWebauthn.CBOR do
   """
   @spec encode_extensions(map()) :: {:ok, binary()} | {:error, term()}
   def encode_extensions(extensions_map) do
-    try do
-      encoded = CBOR.encode(extensions_map)
-      {:ok, encoded}
-    rescue
-      error -> {:error, error}
-    end
+    encoded = CBOR.encode(extensions_map)
+    {:ok, encoded}
+  rescue
+    error -> {:error, error}
   end
 
   @doc """

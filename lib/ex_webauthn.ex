@@ -32,7 +32,7 @@ defmodule ExWebauthn do
       {:ok, options} = ExWebauthn.Registration.generate_creation_options(rp, user)
       
       # Validate registration response
-      {:ok, credential} = ExWebauthn.Registration.verify_creation(response, options)
+      {:ok, credential} = ExWebauthn.Registration.verify_creation(response, options, origin)
 
   Authentication flow:
 
@@ -43,7 +43,7 @@ defmodule ExWebauthn do
       {:ok, result} = ExWebauthn.Authentication.verify_assertion(response, options, credential)
   """
 
-  alias ExWebauthn.{Credential, Attestation, Assertion, Validator}
+  alias ExWebauthn.{Assertion, Attestation, Credential, Registration, Validator}
 
   @doc """
   Generates a cryptographically secure challenge for WebAuthn operations.
@@ -87,6 +87,41 @@ defmodule ExWebauthn do
   end
 
   def validate(_), do: {:error, :unsupported_validation_type}
+
+  @doc """
+  Convenience function for generating registration options.
+
+  Delegates to `ExWebauthn.Registration.generate_creation_options/3`.
+  """
+  @spec generate_registration_options(
+          Credential.RelyingParty.t(),
+          Credential.User.t(),
+          keyword()
+        ) :: {:ok, Attestation.CreationOptions.t()} | {:error, atom()}
+  def generate_registration_options(rp, user, opts \\ []) do
+    Registration.generate_creation_options(rp, user, opts)
+  end
+
+  @doc """
+  Convenience function for verifying registration responses.
+
+  Delegates to `ExWebauthn.Registration.verify_creation/3`.
+  """
+  @spec verify_registration(map(), Attestation.CreationOptions.t(), String.t()) ::
+          {:ok, Credential.t()} | {:error, atom()}
+  def verify_registration(response, options, origin) do
+    Registration.verify_creation(response, options, origin)
+  end
+
+  @doc """
+  Convenience function for converting options to JSON format.
+
+  Delegates to `ExWebauthn.Registration.options_to_json/1`.
+  """
+  @spec options_to_json(Attestation.CreationOptions.t()) :: map()
+  def options_to_json(%Attestation.CreationOptions{} = options) do
+    Registration.options_to_json(options)
+  end
 
   @doc """
   Returns the library version.

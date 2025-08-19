@@ -34,9 +34,6 @@ defmodule ExWebauthn.Credential do
           creation_time: DateTime.t()
         }
 
-  @doc """
-  Public key credential descriptor used in credential requests.
-  """
   defmodule Descriptor do
     @moduledoc """
     Represents a public key credential descriptor.
@@ -55,9 +52,6 @@ defmodule ExWebauthn.Credential do
           }
   end
 
-  @doc """
-  User entity information for credential operations.
-  """
   defmodule User do
     @moduledoc """
     Represents user entity information in WebAuthn operations.
@@ -76,9 +70,6 @@ defmodule ExWebauthn.Credential do
           }
   end
 
-  @doc """
-  Relying Party entity information.
-  """
   defmodule RelyingParty do
     @moduledoc """
     Represents relying party entity information.
@@ -97,9 +88,6 @@ defmodule ExWebauthn.Credential do
           }
   end
 
-  @doc """
-  Public key credential parameters for credential creation.
-  """
   defmodule Parameters do
     @moduledoc """
     Represents public key credential parameters.

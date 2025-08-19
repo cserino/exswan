@@ -23,9 +23,6 @@ defmodule ExWebauthn.Attestation do
           att_stmt: map()
         }
 
-  @doc """
-  Authenticator data structure.
-  """
   defmodule AuthenticatorData do
     @moduledoc """
     Represents authenticator data returned during WebAuthn operations.
@@ -48,9 +45,6 @@ defmodule ExWebauthn.Attestation do
           }
   end
 
-  @doc """
-  Flags within authenticator data.
-  """
   defmodule Flags do
     @moduledoc """
     Represents flags in authenticator data.
@@ -71,9 +65,6 @@ defmodule ExWebauthn.Attestation do
           }
   end
 
-  @doc """
-  Attested credential data included in authenticator data during registration.
-  """
   defmodule AttestedCredentialData do
     @moduledoc """
     Represents attested credential data.
@@ -94,12 +85,9 @@ defmodule ExWebauthn.Attestation do
           }
   end
 
-  @doc """
-  Public key credential creation options sent to authenticator.
-  """
   defmodule CreationOptions do
     @moduledoc """
-    Represents options for creating a new credential.
+    Public key credential creation options sent to authenticator.
     """
 
     defstruct [
@@ -127,9 +115,6 @@ defmodule ExWebauthn.Attestation do
           }
   end
 
-  @doc """
-  Authenticator selection criteria.
-  """
   defmodule AuthenticatorSelection do
     @moduledoc """
     Represents authenticator selection criteria.

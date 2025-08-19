@@ -6,12 +6,9 @@ defmodule ExWebauthn.Assertion do
   including assertion responses and request options.
   """
 
-  alias ExWebauthn.Credential
   alias ExWebauthn.Attestation.AuthenticatorData
+  alias ExWebauthn.Credential
 
-  @doc """
-  Public key credential request options sent to authenticator.
-  """
   defmodule RequestOptions do
     @moduledoc """
     Represents options for requesting an assertion.
@@ -36,9 +33,6 @@ defmodule ExWebauthn.Assertion do
           }
   end
 
-  @doc """
-  Authenticator assertion response.
-  """
   defmodule Response do
     @moduledoc """
     Represents an authenticator assertion response.
@@ -59,9 +53,6 @@ defmodule ExWebauthn.Assertion do
           }
   end
 
-  @doc """
-  Client data JSON structure for assertions.
-  """
   defmodule ClientData do
     @moduledoc """
     Represents client data JSON for WebAuthn assertions.
@@ -84,9 +75,6 @@ defmodule ExWebauthn.Assertion do
           }
   end
 
-  @doc """
-  Full assertion result containing both client and authenticator data.
-  """
   defmodule Result do
     @moduledoc """
     Represents a complete assertion result.

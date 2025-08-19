@@ -6,9 +6,9 @@ defmodule ExWebauthn.Validator do
   ensuring compliance with the WebAuthn specification and security best practices.
   """
 
-  alias ExWebauthn.Credential
-  alias ExWebauthn.Attestation
   alias ExWebauthn.Assertion
+  alias ExWebauthn.Attestation
+  alias ExWebauthn.Credential
 
   @doc """
   Validates a challenge value meets WebAuthn requirements.
