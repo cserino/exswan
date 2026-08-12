@@ -6,8 +6,6 @@ defmodule ExWebauthn.Crypto do
   and other cryptographic operations required by the WebAuthn specification.
   """
 
-  require Logger
-
   @doc """
   Verifies a digital signature using the provided public key and data.
 

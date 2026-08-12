@@ -13,7 +13,7 @@ ExWebauthn provides a robust, security-focused library for implementing WebAuthn
 
 - Full WebAuthn Level 2 specification compliance
 - Registration and authentication ceremony support
-- Multiple attestation format support (packed, fido-u2f, android-safetynet)
+- Attestation format support for `none`, `packed`, and `fido-u2f`
 - Comprehensive security validation
 
 🛡️ **Security First**
@@ -156,6 +156,9 @@ config :ex_webauthn,
 - Implement proper credential storage with encryption
 - Regularly update dependencies for security patches
 - Consider implementing rate limiting for registration/authentication endpoints
+- Android SafetyNet attestation is intentionally unsupported because Google deprecated the service
+  and its trust guarantees cannot be validated without the retired Google infrastructure. Android
+  passkeys remain supported through `none` or another supported attestation format.
 
 ## Contributing
 

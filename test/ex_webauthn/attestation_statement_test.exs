@@ -128,23 +128,17 @@ defmodule ExWebauthn.AttestationStatementTest do
                {:error, {:missing_field, "x5c"}}
     end
 
-    test "handles android-safetynet attestation format" do
+    @tag capture_log: true
+    test "rejects deprecated android-safetynet attestation format" do
       auth_data = create_test_auth_data()
       client_data_hash = :crypto.hash(:sha256, "test")
 
-      # Create proper SafetyNet JWT with correct nonce
-      jwt_response = create_valid_safetynet_jwt(auth_data, client_data_hash)
-
-      att_stmt = %{
-        "response" => jwt_response
-      }
-
       assert AttestationStatement.verify(
                "android-safetynet",
-               att_stmt,
+               %{"response" => "untrusted.jwt.response"},
                auth_data,
                client_data_hash
-             ) == :ok
+             ) == {:error, :unsupported_attestation_format}
     end
 
     @tag capture_log: true
@@ -238,27 +232,5 @@ defmodule ExWebauthn.AttestationStatementTest do
       |> X509.Certificate.to_der()
 
     {certificate, private_key}
-  end
-
-  defp create_valid_safetynet_jwt(auth_data, client_data_hash) do
-    header = %{"alg" => "RS256", "typ" => "JWT"}
-
-    # Create correct nonce: SHA256(authData || clientDataHash)
-    expected_nonce = :crypto.hash(:sha256, auth_data <> client_data_hash)
-    nonce_b64 = Base.url_encode64(expected_nonce, padding: false)
-
-    payload = %{
-      "nonce" => nonce_b64,
-      "timestampMs" => System.system_time(:millisecond),
-      "apkPackageName" => "com.example.app",
-      "ctsProfileMatch" => true,
-      "basicIntegrity" => true
-    }
-
-    encoded_header = Base.url_encode64(Jason.encode!(header), padding: false)
-    encoded_payload = Base.url_encode64(Jason.encode!(payload), padding: false)
-    signature = Base.url_encode64(:crypto.strong_rand_bytes(256), padding: false)
-
-    "#{encoded_header}.#{encoded_payload}.#{signature}"
   end
 end

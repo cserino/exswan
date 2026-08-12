@@ -416,7 +416,7 @@ defmodule ExWebauthn.Registration do
             # Calculate size of CBOR-encoded public key
             {:ok, encoded_key} = CBORUtils.encode_credential_public_key(public_key)
             key_size = byte_size(encoded_key)
-            <<_key::binary-size(key_size), ext_data::binary>> = remaining
+            <<_key::binary-size(^key_size), ext_data::binary>> = remaining
             {CBORUtils.untag_decoded_cbor_data(public_key), ext_data}
 
           _ ->

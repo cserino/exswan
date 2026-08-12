@@ -38,7 +38,7 @@ defmodule ExWebauthn.Authentication do
           | {:allow_credentials, [Credential.Descriptor.t()]}
           | {:user_verification, String.t()}
           | {:extensions, map()}
-       ]
+        ]
 
   @doc """
   Generates request options for authenticating with a credential.

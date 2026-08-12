@@ -51,7 +51,7 @@ ExWebauthn is an Elixir library for implementing WebAuthn (Web Authentication) s
 
 - Parse attestation responses
 - Validate attestation statements
-- Support multiple attestation formats (packed, fido-u2f, android-safetynet)
+- Support attestation formats that can be validated securely (`none`, `packed`, and `fido-u2f`)
 - Store and manage public keys
 
 ## Phase 3: Authentication Flow (Weeks 5-6)
@@ -138,4 +138,3 @@ ExWebauthn/
 - Advanced authenticator features
 - Performance optimizations
 - Mobile app integration helpers
-

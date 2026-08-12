@@ -10,7 +10,6 @@ defmodule ExWebauthn.AttestationStatement do
   - `none` - No attestation statement
   - `packed` - Self attestation or full attestation with certificate chain
   - `fido-u2f` - FIDO U2F attestation statement format
-  - `android-safetynet` - Android SafetyNet attestation
 
   Each format has specific validation requirements and trust models.
   """
@@ -47,10 +46,6 @@ defmodule ExWebauthn.AttestationStatement do
 
   def verify("fido-u2f", att_stmt, auth_data, client_data_hash) do
     verify_fido_u2f_attestation(att_stmt, auth_data, client_data_hash)
-  end
-
-  def verify("android-safetynet", att_stmt, auth_data, client_data_hash) do
-    verify_android_safetynet_attestation(att_stmt, auth_data, client_data_hash)
   end
 
   def verify(unsupported_format, _att_stmt, _auth_data, _client_data_hash) do
@@ -109,16 +104,6 @@ defmodule ExWebauthn.AttestationStatement do
          {:ok, public_key} <- extract_certificate_public_key(x5c),
          {:ok, verification_data} <- build_u2f_verification_data(auth_data, client_data_hash),
          :ok <- verify_u2f_signature(sig, verification_data, public_key) do
-      :ok
-    end
-  end
-
-  # Android SafetyNet attestation validation
-  defp verify_android_safetynet_attestation(att_stmt, auth_data, client_data_hash) do
-    with {:ok, response} <- get_required_field(att_stmt, "response"),
-         {:ok, jwt_parts} <- parse_jwt(response),
-         :ok <- verify_jwt_signature(jwt_parts),
-         :ok <- verify_safetynet_payload(jwt_parts.payload, auth_data, client_data_hash) do
       :ok
     end
   end
@@ -197,8 +182,6 @@ defmodule ExWebauthn.AttestationStatement do
         {:error, :empty_certificate_chain}
     end
   end
-
-  defp extract_certificate_public_key(_), do: {:error, :invalid_certificate_chain}
 
   defp validate_certificate_chain(certificates) when is_list(certificates) do
     cond do
@@ -492,141 +475,5 @@ defmodule ExWebauthn.AttestationStatement do
   rescue
     # Handle any crypto errors gracefully
     _error -> {:error, :signature_verification_failed}
-  end
-
-  defp parse_jwt(jwt_string) when is_binary(jwt_string) do
-    case String.split(jwt_string, ".") do
-      [header, payload, signature] ->
-        with {:ok, decoded_header} <- decode_base64_json(header),
-             {:ok, decoded_payload} <- decode_base64_json(payload) do
-          {:ok,
-           %{
-             header: decoded_header,
-             payload: decoded_payload,
-             signature: signature,
-             raw: jwt_string
-           }}
-        end
-
-      _ ->
-        {:error, :invalid_jwt_format}
-    end
-  end
-
-  defp decode_base64_json(encoded) do
-    with {:ok, decoded} <- Base.url_decode64(encoded, padding: false),
-         {:ok, json} <- Jason.decode(decoded) do
-      {:ok, json}
-    else
-      :error -> {:error, :invalid_base64}
-      {:error, %Jason.DecodeError{}} -> {:error, :invalid_json}
-    end
-  end
-
-  defp verify_jwt_signature(jwt_parts) do
-    # For SafetyNet, we need to verify the JWT signature against Google's public keys
-    # In production, you should fetch and cache Google's public keys from:
-    # https://www.googleapis.com/oauth2/v1/certs
-
-    # For now, we'll implement a basic JWT signature verification structure
-    # that would work with the proper public keys
-    case jwt_parts do
-      %{header: %{"alg" => "RS256"}, raw: jwt_string} ->
-        # In production: fetch Google's public keys and verify signature
-        # For testing: extract signature and verify against provided test keys
-        verify_jwt_rs256_signature(jwt_string)
-
-      %{header: %{"alg" => alg}} ->
-        {:error, {:unsupported_jwt_algorithm, alg}}
-
-      _ ->
-        {:error, :invalid_jwt_structure}
-    end
-  end
-
-  defp verify_jwt_rs256_signature(jwt_string) do
-    case String.split(jwt_string, ".") do
-      [header_b64, payload_b64, signature_b64] ->
-        # Construct verification data (header.payload)
-        _verification_data = "#{header_b64}.#{payload_b64}"
-
-        with {:ok, signature} <- Base.url_decode64(signature_b64, padding: false),
-             :ok <- validate_jwt_signature_length(signature) do
-          # In production: verify against Google's public keys
-          # verify_against_google_public_keys(verification_data, signature)
-          :ok
-        else
-          _ ->
-            {:error, :jwt_signature_verification_failed}
-        end
-
-      _ ->
-        {:error, :invalid_jwt_format}
-    end
-  end
-
-  defp validate_jwt_signature_length(signature) do
-    if byte_size(signature) >= 128 do
-      :ok
-    else
-      {:error, :jwt_signature_verification_failed}
-    end
-  end
-
-  defp verify_safetynet_payload(payload, auth_data, client_data_hash) do
-    with :ok <- verify_safetynet_nonce(payload, auth_data, client_data_hash),
-         :ok <- verify_safetynet_timestamp(payload),
-         :ok <- verify_safetynet_integrity(payload) do
-      :ok
-    end
-  end
-
-  defp verify_safetynet_nonce(payload, auth_data, client_data_hash) do
-    with {:ok, nonce_b64} <- Map.fetch(payload, "nonce"),
-         {:ok, provided_nonce} <- Base.url_decode64(nonce_b64, padding: false) do
-      expected_nonce = :crypto.hash(:sha256, auth_data <> client_data_hash)
-
-      if provided_nonce == expected_nonce do
-        :ok
-      else
-        {:error, :invalid_nonce}
-      end
-    else
-      :error -> {:error, :missing_nonce}
-    end
-  end
-
-  defp verify_safetynet_timestamp(payload) do
-    case Map.get(payload, "timestampMs") do
-      nil ->
-        {:error, :missing_timestamp}
-
-      timestamp_ms when is_integer(timestamp_ms) ->
-        # Check if timestamp is recent (within 60 seconds)
-        current_time_ms = System.system_time(:millisecond)
-        time_diff_ms = abs(current_time_ms - timestamp_ms)
-
-        # Allow 60 second tolerance
-        if time_diff_ms <= 60_000 do
-          :ok
-        else
-          {:error, :expired_timestamp}
-        end
-
-      _ ->
-        {:error, :invalid_timestamp_format}
-    end
-  end
-
-  defp verify_safetynet_integrity(payload) do
-    cts_profile_match = Map.get(payload, "ctsProfileMatch", false)
-    basic_integrity = Map.get(payload, "basicIntegrity", false)
-
-    # Both should be true for a device to be considered secure
-    if cts_profile_match and basic_integrity do
-      :ok
-    else
-      {:error, :device_integrity_failed}
-    end
   end
 end
