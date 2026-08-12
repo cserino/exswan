@@ -79,6 +79,12 @@ defmodule ExSwan.CompatibilityCeremonyTest do
     user_id = Base.url_decode64!(ceremony["userID"], padding: false)
 
     for {name, invalid_case} <- fixture["invalid"]["authentication"] do
+      case_credential =
+        case invalid_case["storedSignCount"] do
+          nil -> credential
+          sign_count -> %{credential | sign_count: sign_count}
+        end
+
       result =
         ExSwan.verify_authentication_response(
           response: invalid_case["response"],
@@ -86,7 +92,7 @@ defmodule ExSwan.CompatibilityCeremonyTest do
           expected_origin: ceremony["origin"],
           expected_rp_id: Map.get(invalid_case, "expectedRpID", ceremony["rpID"]),
           expected_user_handle: user_id,
-          credential: credential
+          credential: case_credential
         )
 
       expected = {:error, expected_error(invalid_case["expectedError"])}
@@ -122,6 +128,12 @@ defmodule ExSwan.CompatibilityCeremonyTest do
   defp expected_error("invalid_authenticator_data"), do: :invalid_authenticator_data
   defp expected_error("invalid_credential_public_key"), do: :invalid_credential_public_key
   defp expected_error("invalid_signature_encoding"), do: :invalid_signature_encoding
+  defp expected_error("unsupported_credential_algorithm"), do: :unsupported_credential_algorithm
+  defp expected_error("user_not_present"), do: :user_not_present
+  defp expected_error("user_verification_required"), do: :user_verification_required
+  defp expected_error("invalid_backup_flags"), do: :invalid_backup_flags
+  defp expected_error("invalid_signature_counter"), do: :invalid_signature_counter
+  defp expected_error("user_handle_mismatch"), do: :user_handle_mismatch
 
   defp expected_error("invalid_authenticator_data_length"),
     do: :invalid_authenticator_data_length

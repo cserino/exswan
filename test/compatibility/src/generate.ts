@@ -131,6 +131,17 @@ const registrationAuthenticatorData = concat(
   credentialIDBytes,
   cosePublicKey,
 );
+function registrationAuthenticatorDataWithFlags(flags: number): Uint8Array {
+  return concat(
+    rpIDHash,
+    new Uint8Array([flags]),
+    uint32(0),
+    aaguid,
+    credentialIDLength,
+    credentialIDBytes,
+    cosePublicKey,
+  );
+}
 const registrationClientDataJSON = JSON.stringify({
   type: "webauthn.create",
   challenge: registration.challenge,
@@ -185,6 +196,24 @@ const authenticationResponse: AuthenticationResponseJSON = {
     userHandle: base64url(new Uint8Array([1, 2, 3, 4])),
   },
 };
+
+function authenticationResponseWithState(
+  flags: number,
+  signCount: number,
+): AuthenticationResponseJSON {
+  const response = structuredClone(authenticationResponse);
+  const authenticatorData = concat(
+    rpIDHash,
+    new Uint8Array([flags]),
+    uint32(signCount),
+  );
+  const data = concat(authenticatorData, sha256(authenticationClientDataJSON));
+  response.response.authenticatorData = base64url(authenticatorData);
+  response.response.signature = base64url(
+    p256.sign(sha256(data), privateKey).toDERRawBytes(),
+  );
+  return response;
+}
 
 const invalidRegistrationCases = {
   wrongChallenge: {
@@ -254,6 +283,34 @@ const invalidRegistrationCases = {
     ),
     expectedError: "invalid_credential_public_key",
   },
+  algorithmNotOffered: {
+    response: {
+      ...registrationResponse,
+      response: {...registrationResponse.response, publicKeyAlgorithm: -257},
+    },
+    expectedError: "unsupported_credential_algorithm",
+  },
+  userPresenceMissing: {
+    response: withRegistrationAuthenticatorData(
+      registrationResponse,
+      registrationAuthenticatorDataWithFlags(0x44),
+    ),
+    expectedError: "user_not_present",
+  },
+  userVerificationMissing: {
+    response: withRegistrationAuthenticatorData(
+      registrationResponse,
+      registrationAuthenticatorDataWithFlags(0x41),
+    ),
+    expectedError: "user_verification_required",
+  },
+  backupStateWithoutEligibility: {
+    response: withRegistrationAuthenticatorData(
+      registrationResponse,
+      registrationAuthenticatorDataWithFlags(0x55),
+    ),
+    expectedError: "invalid_backup_flags",
+  },
 };
 
 const invalidAuthenticationCases = {
@@ -301,6 +358,30 @@ const invalidAuthenticationCases = {
       },
     },
     expectedError: "invalid_authenticator_data_length",
+  },
+  userPresenceMissing: {
+    response: authenticationResponseWithState(0x04, 1),
+    expectedError: "user_not_present",
+  },
+  userVerificationMissing: {
+    response: authenticationResponseWithState(0x01, 1),
+    expectedError: "user_verification_required",
+  },
+  backupStateWithoutEligibility: {
+    response: authenticationResponseWithState(0x15, 1),
+    expectedError: "invalid_backup_flags",
+  },
+  counterRollback: {
+    response: authenticationResponse,
+    storedSignCount: 1,
+    expectedError: "invalid_signature_counter",
+  },
+  userHandleMismatch: {
+    response: {
+      ...authenticationResponse,
+      response: {...authenticationResponse.response, userHandle: "BQ"},
+    },
+    expectedError: "user_handle_mismatch",
   },
 };
 

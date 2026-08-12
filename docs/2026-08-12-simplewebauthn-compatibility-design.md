@@ -12,7 +12,7 @@ Options emitted by ExSwan must pass directly to `startRegistration({optionsJSON}
 `startAuthentication({optionsJSON})`.
 
 SimpleWebAuthn compatibility governs wire shapes, field names, defaults, and returned
-ceremony information. WebAuthn compliance and protocol safety govern verificatioqn.
+ceremony information. WebAuthn compliance and protocol safety govern verification.
 
 > ExSwan may reject responses that SimpleWebAuthn accepts when current protocol safety
 > requires rejection. ExSwan must never accept a response that WebAuthn requires a
@@ -357,7 +357,7 @@ The release sequence is:
 - [ ] Add a full ES256 registration-to-authentication vector.
 - [x] Add wrong challenge, origin, RP ID, ceremony type, and credential ID cases.
 - [x] Add malformed base64url, JSON, CBOR, COSE, and authenticator-data cases.
-- [ ] Add algorithm-not-offered, UV/UP, BE/BS, counter rollback, and user-handle cases.
+- [x] Add algorithm-not-offered, UV/UP, BE/BS, counter rollback, and user-handle cases.
 - [ ] Add StreamData properties for base64url and all binary parsers.
 - [ ] Assert that no arbitrary public input crashes a verifier process.
 - [ ] Add Ed25519 and RS256 only with complete vectors across the supported OTP matrix.

@@ -320,6 +320,94 @@
           }
         },
         "expectedError": "invalid_credential_public_key"
+      },
+      "algorithmNotOffered": {
+        "response": {
+          "id": "CQgHBg",
+          "rawId": "CQgHBg",
+          "type": "public-key",
+          "authenticatorAttachment": "platform",
+          "clientExtensionResults": {
+            "credProps": {
+              "rk": true
+            }
+          },
+          "response": {
+            "attestationObject": "uQADY2ZtdGRub25laGF1dGhEYXRhWIijeab27q-5pV43jBGANOJ1Hmgvq58tMKsT0hJVhs4ZR0UAAAAAAAAAAAAAAAAAAAAAAAAAAAAECQgHBqUBAgMmIAEhWCBrF9Hy4SxCR_i85uVjpEDydwN9gS3rM6D0oTlF2JjCliJYIE_jQuL-Gn-bjufrSnwPnhYrzjNXazFezsu2QGg3v1H1Z2F0dFN0bXS5AAA",
+            "clientDataJSON": "eyJ0eXBlIjoid2ViYXV0aG4uY3JlYXRlIiwiY2hhbGxlbmdlIjoiUVZGRlFrRlJSVUpCVVVWQ1FWRkZRa0ZSUlVKQlVVVkNRVkZGUWtGUlJVSkJVVVZDUVZGRlFrRlJSUSIsIm9yaWdpbiI6Imh0dHBzOi8vZXhhbXBsZS5jb20iLCJjcm9zc09yaWdpbiI6ZmFsc2V9",
+            "transports": [
+              "internal"
+            ],
+            "publicKeyAlgorithm": -257
+          }
+        },
+        "expectedError": "unsupported_credential_algorithm"
+      },
+      "userPresenceMissing": {
+        "response": {
+          "id": "CQgHBg",
+          "rawId": "CQgHBg",
+          "type": "public-key",
+          "authenticatorAttachment": "platform",
+          "clientExtensionResults": {
+            "credProps": {
+              "rk": true
+            }
+          },
+          "response": {
+            "attestationObject": "uQADY2ZtdGRub25laGF1dGhEYXRhWIijeab27q-5pV43jBGANOJ1Hmgvq58tMKsT0hJVhs4ZR0QAAAAAAAAAAAAAAAAAAAAAAAAAAAAECQgHBqUBAgMmIAEhWCBrF9Hy4SxCR_i85uVjpEDydwN9gS3rM6D0oTlF2JjCliJYIE_jQuL-Gn-bjufrSnwPnhYrzjNXazFezsu2QGg3v1H1Z2F0dFN0bXS5AAA",
+            "clientDataJSON": "eyJ0eXBlIjoid2ViYXV0aG4uY3JlYXRlIiwiY2hhbGxlbmdlIjoiUVZGRlFrRlJSVUpCVVVWQ1FWRkZRa0ZSUlVKQlVVVkNRVkZGUWtGUlJVSkJVVVZDUVZGRlFrRlJSUSIsIm9yaWdpbiI6Imh0dHBzOi8vZXhhbXBsZS5jb20iLCJjcm9zc09yaWdpbiI6ZmFsc2V9",
+            "transports": [
+              "internal"
+            ],
+            "publicKeyAlgorithm": -7
+          }
+        },
+        "expectedError": "user_not_present"
+      },
+      "userVerificationMissing": {
+        "response": {
+          "id": "CQgHBg",
+          "rawId": "CQgHBg",
+          "type": "public-key",
+          "authenticatorAttachment": "platform",
+          "clientExtensionResults": {
+            "credProps": {
+              "rk": true
+            }
+          },
+          "response": {
+            "attestationObject": "uQADY2ZtdGRub25laGF1dGhEYXRhWIijeab27q-5pV43jBGANOJ1Hmgvq58tMKsT0hJVhs4ZR0EAAAAAAAAAAAAAAAAAAAAAAAAAAAAECQgHBqUBAgMmIAEhWCBrF9Hy4SxCR_i85uVjpEDydwN9gS3rM6D0oTlF2JjCliJYIE_jQuL-Gn-bjufrSnwPnhYrzjNXazFezsu2QGg3v1H1Z2F0dFN0bXS5AAA",
+            "clientDataJSON": "eyJ0eXBlIjoid2ViYXV0aG4uY3JlYXRlIiwiY2hhbGxlbmdlIjoiUVZGRlFrRlJSVUpCVVVWQ1FWRkZRa0ZSUlVKQlVVVkNRVkZGUWtGUlJVSkJVVVZDUVZGRlFrRlJSUSIsIm9yaWdpbiI6Imh0dHBzOi8vZXhhbXBsZS5jb20iLCJjcm9zc09yaWdpbiI6ZmFsc2V9",
+            "transports": [
+              "internal"
+            ],
+            "publicKeyAlgorithm": -7
+          }
+        },
+        "expectedError": "user_verification_required"
+      },
+      "backupStateWithoutEligibility": {
+        "response": {
+          "id": "CQgHBg",
+          "rawId": "CQgHBg",
+          "type": "public-key",
+          "authenticatorAttachment": "platform",
+          "clientExtensionResults": {
+            "credProps": {
+              "rk": true
+            }
+          },
+          "response": {
+            "attestationObject": "uQADY2ZtdGRub25laGF1dGhEYXRhWIijeab27q-5pV43jBGANOJ1Hmgvq58tMKsT0hJVhs4ZR1UAAAAAAAAAAAAAAAAAAAAAAAAAAAAECQgHBqUBAgMmIAEhWCBrF9Hy4SxCR_i85uVjpEDydwN9gS3rM6D0oTlF2JjCliJYIE_jQuL-Gn-bjufrSnwPnhYrzjNXazFezsu2QGg3v1H1Z2F0dFN0bXS5AAA",
+            "clientDataJSON": "eyJ0eXBlIjoid2ViYXV0aG4uY3JlYXRlIiwiY2hhbGxlbmdlIjoiUVZGRlFrRlJSVUpCVVVWQ1FWRkZRa0ZSUlVKQlVVVkNRVkZGUWtGUlJVSkJVVVZDUVZGRlFrRlJSUSIsIm9yaWdpbiI6Imh0dHBzOi8vZXhhbXBsZS5jb20iLCJjcm9zc09yaWdpbiI6ZmFsc2V9",
+            "transports": [
+              "internal"
+            ],
+            "publicKeyAlgorithm": -7
+          }
+        },
+        "expectedError": "invalid_backup_flags"
       }
     },
     "authentication": {
@@ -451,6 +539,87 @@
           }
         },
         "expectedError": "invalid_authenticator_data_length"
+      },
+      "userPresenceMissing": {
+        "response": {
+          "id": "CQgHBg",
+          "rawId": "CQgHBg",
+          "type": "public-key",
+          "authenticatorAttachment": "platform",
+          "clientExtensionResults": {},
+          "response": {
+            "authenticatorData": "o3mm9u6vuaVeN4wRgDTidR5oL6ufLTCrE9ISVYbOGUcEAAAAAQ",
+            "clientDataJSON": "eyJ0eXBlIjoid2ViYXV0aG4uZ2V0IiwiY2hhbGxlbmdlIjoiUVZGRlFrRlJSVUpCVVVWQ1FWRkZRa0ZSUlVKQlVVVkNRVkZGUWtGUlJVSkJVVVZDUVZGRlFrRlJSUSIsIm9yaWdpbiI6Imh0dHBzOi8vZXhhbXBsZS5jb20iLCJjcm9zc09yaWdpbiI6ZmFsc2V9",
+            "signature": "MEYCIQDjdaszg5cnFAszmYZJKOXiMFfuOfeYL-fH26mHcr5qDwIhAOyYg2PCibbWWx5FMkmkPWfhqnT73o3nm-sM_5tPAucE",
+            "userHandle": "AQIDBA"
+          }
+        },
+        "expectedError": "user_not_present"
+      },
+      "userVerificationMissing": {
+        "response": {
+          "id": "CQgHBg",
+          "rawId": "CQgHBg",
+          "type": "public-key",
+          "authenticatorAttachment": "platform",
+          "clientExtensionResults": {},
+          "response": {
+            "authenticatorData": "o3mm9u6vuaVeN4wRgDTidR5oL6ufLTCrE9ISVYbOGUcBAAAAAQ",
+            "clientDataJSON": "eyJ0eXBlIjoid2ViYXV0aG4uZ2V0IiwiY2hhbGxlbmdlIjoiUVZGRlFrRlJSVUpCVVVWQ1FWRkZRa0ZSUlVKQlVVVkNRVkZGUWtGUlJVSkJVVVZDUVZGRlFrRlJSUSIsIm9yaWdpbiI6Imh0dHBzOi8vZXhhbXBsZS5jb20iLCJjcm9zc09yaWdpbiI6ZmFsc2V9",
+            "signature": "MEUCIEyRaY7334TGpFGAqICHw2C5gi9R37Dkc2SCX9yKGAdHAiEA5OTAdnKJ2NYhI8-LhtiAOC_cNqEdaj7WDn2Sbhek6so",
+            "userHandle": "AQIDBA"
+          }
+        },
+        "expectedError": "user_verification_required"
+      },
+      "backupStateWithoutEligibility": {
+        "response": {
+          "id": "CQgHBg",
+          "rawId": "CQgHBg",
+          "type": "public-key",
+          "authenticatorAttachment": "platform",
+          "clientExtensionResults": {},
+          "response": {
+            "authenticatorData": "o3mm9u6vuaVeN4wRgDTidR5oL6ufLTCrE9ISVYbOGUcVAAAAAQ",
+            "clientDataJSON": "eyJ0eXBlIjoid2ViYXV0aG4uZ2V0IiwiY2hhbGxlbmdlIjoiUVZGRlFrRlJSVUpCVVVWQ1FWRkZRa0ZSUlVKQlVVVkNRVkZGUWtGUlJVSkJVVVZDUVZGRlFrRlJSUSIsIm9yaWdpbiI6Imh0dHBzOi8vZXhhbXBsZS5jb20iLCJjcm9zc09yaWdpbiI6ZmFsc2V9",
+            "signature": "MEUCIHP2iHhwtKxL2uHR2m-RIVsUc6vHeCCPUg0x9wBreYkgAiEAk-LVbwfAx-iMGkUuRCqIttQLkcr3lm2rdwe0tPMQLQY",
+            "userHandle": "AQIDBA"
+          }
+        },
+        "expectedError": "invalid_backup_flags"
+      },
+      "counterRollback": {
+        "response": {
+          "id": "CQgHBg",
+          "rawId": "CQgHBg",
+          "type": "public-key",
+          "authenticatorAttachment": "platform",
+          "clientExtensionResults": {},
+          "response": {
+            "authenticatorData": "o3mm9u6vuaVeN4wRgDTidR5oL6ufLTCrE9ISVYbOGUcFAAAAAQ",
+            "clientDataJSON": "eyJ0eXBlIjoid2ViYXV0aG4uZ2V0IiwiY2hhbGxlbmdlIjoiUVZGRlFrRlJSVUpCVVVWQ1FWRkZRa0ZSUlVKQlVVVkNRVkZGUWtGUlJVSkJVVVZDUVZGRlFrRlJSUSIsIm9yaWdpbiI6Imh0dHBzOi8vZXhhbXBsZS5jb20iLCJjcm9zc09yaWdpbiI6ZmFsc2V9",
+            "signature": "MEQCICOKewBV79NIvUtGBWAAEAJ8GnDy4-LNc_62MQb0rq22AiBkXrA-N1MZI8FGs2CkqDMK2wBqQL4dUP2matWL5HI1lA",
+            "userHandle": "AQIDBA"
+          }
+        },
+        "storedSignCount": 1,
+        "expectedError": "invalid_signature_counter"
+      },
+      "userHandleMismatch": {
+        "response": {
+          "id": "CQgHBg",
+          "rawId": "CQgHBg",
+          "type": "public-key",
+          "authenticatorAttachment": "platform",
+          "clientExtensionResults": {},
+          "response": {
+            "authenticatorData": "o3mm9u6vuaVeN4wRgDTidR5oL6ufLTCrE9ISVYbOGUcFAAAAAQ",
+            "clientDataJSON": "eyJ0eXBlIjoid2ViYXV0aG4uZ2V0IiwiY2hhbGxlbmdlIjoiUVZGRlFrRlJSVUpCVVVWQ1FWRkZRa0ZSUlVKQlVVVkNRVkZGUWtGUlJVSkJVVVZDUVZGRlFrRlJSUSIsIm9yaWdpbiI6Imh0dHBzOi8vZXhhbXBsZS5jb20iLCJjcm9zc09yaWdpbiI6ZmFsc2V9",
+            "signature": "MEQCICOKewBV79NIvUtGBWAAEAJ8GnDy4-LNc_62MQb0rq22AiBkXrA-N1MZI8FGs2CkqDMK2wBqQL4dUP2matWL5HI1lA",
+            "userHandle": "BQ"
+          }
+        },
+        "expectedError": "user_handle_mismatch"
       }
     }
   }
