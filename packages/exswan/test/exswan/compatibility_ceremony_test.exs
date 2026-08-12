@@ -30,6 +30,7 @@ defmodule ExSwan.CompatibilityCeremonyTest do
     assert registration.attestation_format == :none
     assert registration.credential_device_type == :single_device
     refute registration.credential_backed_up
+    assert registration.authenticator_extension_results == %{"credProtect" => 2}
 
     authentication_challenge =
       Base.url_decode64!(fixture["authentication"]["challenge"], padding: false)

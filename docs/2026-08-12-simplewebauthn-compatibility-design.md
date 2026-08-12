@@ -328,7 +328,7 @@ The release sequence is:
 
 ### 3. Harden protocol parsing and verification
 
-- [ ] Reject CBOR values with trailing bytes in all security-sensitive parsers.
+- [x] Reject CBOR values with trailing bytes in all security-sensitive parsers.
 - [ ] Reject truncated or leftover authenticator data, credential keys, and extensions.
 - [ ] Validate COSE key type, algorithm, curve, coordinate sizes, and required fields.
 - [ ] Enforce that the credential algorithm was offered during registration.
@@ -358,7 +358,7 @@ The release sequence is:
 - [x] Add wrong challenge, origin, RP ID, ceremony type, and credential ID cases.
 - [x] Add malformed base64url, JSON, CBOR, COSE, and authenticator-data cases.
 - [x] Add algorithm-not-offered, UV/UP, BE/BS, counter rollback, and user-handle cases.
-- [ ] Add StreamData properties for base64url and all binary parsers.
+- [x] Add StreamData properties for base64url and all binary parsers.
 - [x] Assert that no arbitrary public input crashes a verifier process.
 - [ ] Add Ed25519 and RS256 only with complete vectors across the supported OTP matrix.
 - [ ] Add each attestation format only with trust, certificate-profile, and end-to-end

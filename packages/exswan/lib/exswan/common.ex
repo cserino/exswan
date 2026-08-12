@@ -199,6 +199,10 @@ defmodule ExSwan.Common do
       _error ->
         {:error, :invalid_authenticator_extensions}
     end
+  rescue
+    _error -> {:error, :invalid_authenticator_extensions}
+  catch
+    _kind, _reason -> {:error, :invalid_authenticator_extensions}
   end
 
   @doc """

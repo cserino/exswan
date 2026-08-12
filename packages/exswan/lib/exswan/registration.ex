@@ -443,17 +443,9 @@ defmodule ExSwan.Registration do
         {:ok, nil, if(extension_data_included, do: remaining, else: nil)}
       end
 
-    with {:ok, attested_credential_data, extensions_data} <- credential_data_result do
-      extensions =
-        if extension_data_included and extensions_data do
-          case CBORUtils.decode_extensions(extensions_data) do
-            {:ok, ext} -> ext
-            _ -> nil
-          end
-        else
-          nil
-        end
-
+    with {:ok, attested_credential_data, extensions_data} <- credential_data_result,
+         {:ok, extensions} <-
+           parse_registration_extensions(extensions_data, extension_data_included) do
       authenticator_data = %Attestation.AuthenticatorData{
         rp_id_hash: rp_id_hash,
         flags: flags_struct,
@@ -480,14 +472,9 @@ defmodule ExSwan.Registration do
     # Parse credential public key (CBOR-encoded COSE key)
     credential_public_key_result =
       if extension_data_included do
-        # Need to parse CBOR to find where public key ends and extensions begin
-        case CBORUtils.decode_credential_public_key(remaining) do
-          {:ok, public_key} ->
-            # Calculate size of CBOR-encoded public key
-            {:ok, encoded_key} = CBORUtils.encode_credential_public_key(public_key)
-            key_size = byte_size(encoded_key)
-            <<_key::binary-size(^key_size), ext_data::binary>> = remaining
-            {CBORUtils.untag_decoded_cbor_data(public_key), ext_data}
+        case CBORUtils.decode_credential_public_key_with_remainder(remaining) do
+          {:ok, public_key, extension_data} when extension_data != <<>> ->
+            {CBORUtils.untag_decoded_cbor_data(public_key), extension_data}
 
           _ ->
             {:error, :invalid_credential_public_key}
@@ -514,6 +501,18 @@ defmodule ExSwan.Registration do
         {:ok, attested_credential_data, extensions_data}
     end
   end
+
+  defp parse_registration_extensions(nil, false), do: {:ok, nil}
+
+  defp parse_registration_extensions(extension_data, true) when is_binary(extension_data) do
+    case CBORUtils.decode_extensions(extension_data) do
+      {:ok, extensions} -> {:ok, CBORUtils.untag_decoded_cbor_data(extensions)}
+      {:error, _reason} -> {:error, :invalid_authenticator_extensions}
+    end
+  end
+
+  defp parse_registration_extensions(_extension_data, _included),
+    do: {:error, :invalid_authenticator_extensions}
 
   defp verify_user_presence(authenticator_data) do
     Common.verify_user_presence(authenticator_data)

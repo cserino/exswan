@@ -22,9 +22,13 @@ defmodule ExSwan.CBORUtils do
   @spec decode_attestation_object(binary()) :: {:ok, map()} | {:error, term()}
   def decode_attestation_object(cbor_data) do
     case CBOR.decode(cbor_data) do
-      {:ok, decoded, _remaining} -> {:ok, decoded}
-      {:error, reason} -> {:error, reason}
+      {:ok, decoded, <<>>} when is_map(decoded) -> {:ok, decoded}
+      _result -> {:error, :invalid_attestation_object}
     end
+  rescue
+    _error -> {:error, :invalid_attestation_object}
+  catch
+    _kind, _reason -> {:error, :invalid_attestation_object}
   end
 
   @doc """
@@ -35,7 +39,7 @@ defmodule ExSwan.CBORUtils do
   @spec decode_attestation_object_from_base64(binary()) :: {:ok, map()} | {:error, term()}
   def decode_attestation_object_from_base64(base64_data) do
     with {:ok, cbor_decoded} <- Base.url_decode64(base64_data, padding: false),
-         {:ok, decoded, _remaining} <- CBOR.decode(cbor_decoded) do
+         {:ok, decoded, <<>>} when is_map(decoded) <- CBOR.decode(cbor_decoded) do
       {:ok, decoded}
     else
       :error -> {:error, :invalid_attestation_object}
@@ -81,7 +85,7 @@ defmodule ExSwan.CBORUtils do
   def decode_credential_public_key(cbor_data) do
     # First try to decode the original CBOR
     case CBOR.decode(cbor_data) do
-      {:ok, decoded, _remaining} ->
+      {:ok, decoded, <<>>} when is_map(decoded) ->
         # Check if this needs Firefox string value fixing
         fixed_decoded = fix_firefox_cbor_keys(decoded)
         {:ok, fixed_decoded}
@@ -91,7 +95,7 @@ defmodule ExSwan.CBORUtils do
         cbor_data_fixed = apply_firefox_117_eddsa_workaround(cbor_data)
 
         case CBOR.decode(cbor_data_fixed) do
-          {:ok, decoded, _remaining} ->
+          {:ok, decoded, <<>>} when is_map(decoded) ->
             fixed_decoded = fix_firefox_cbor_keys(decoded)
             {:ok, fixed_decoded}
 
@@ -101,6 +105,23 @@ defmodule ExSwan.CBORUtils do
     end
   rescue
     _ -> {:error, :cbor_function_clause_error}
+  end
+
+  @doc false
+  @spec decode_credential_public_key_with_remainder(binary()) ::
+          {:ok, map(), binary()} | {:error, :invalid_credential_public_key}
+  def decode_credential_public_key_with_remainder(cbor_data) do
+    case CBOR.decode(cbor_data) do
+      {:ok, decoded, remaining} when is_map(decoded) ->
+        {:ok, fix_firefox_cbor_keys(decoded), remaining}
+
+      _result ->
+        {:error, :invalid_credential_public_key}
+    end
+  rescue
+    _error -> {:error, :invalid_credential_public_key}
+  catch
+    _kind, _reason -> {:error, :invalid_credential_public_key}
   end
 
   @doc """
@@ -120,9 +141,13 @@ defmodule ExSwan.CBORUtils do
   @spec decode_extensions(binary()) :: {:ok, map()} | {:error, term()}
   def decode_extensions(cbor_data) do
     case CBOR.decode(cbor_data) do
-      {:ok, decoded, _remaining} -> {:ok, decoded}
-      {:error, reason} -> {:error, reason}
+      {:ok, decoded, <<>>} when is_map(decoded) -> {:ok, decoded}
+      _result -> {:error, :invalid_extensions}
     end
+  rescue
+    _error -> {:error, :invalid_extensions}
+  catch
+    _kind, _reason -> {:error, :invalid_extensions}
   end
 
   @doc """

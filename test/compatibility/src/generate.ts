@@ -124,12 +124,13 @@ const cosePublicKey = concat(
 const credentialIDLength = new Uint8Array([0, credentialIDBytes.length]);
 const registrationAuthenticatorData = concat(
   rpIDHash,
-  new Uint8Array([0x45]), // UP, UV, and attested credential data
+  new Uint8Array([0xc5]), // UP, UV, attested credential data, and extensions
   uint32(0),
   aaguid,
   credentialIDLength,
   credentialIDBytes,
   cosePublicKey,
+  cbor.encode({credProtect: 2}),
 );
 function registrationAuthenticatorDataWithFlags(flags: number): Uint8Array {
   return concat(
