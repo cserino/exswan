@@ -24,6 +24,7 @@ This is a local demonstration of passwordless authentication with `exswan` and
 
 - Elixir 1.15+
 - Phoenix 1.8+
+- Bun (for `@simplewebauthn/browser` in `assets/`)
 - A modern browser that supports WebAuthn
 - HTTPS connection (required for WebAuthn in production)
 

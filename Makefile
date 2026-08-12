@@ -99,6 +99,7 @@ compatibility-check:
 browser-chromium:
 	cd test/browser && bun install --frozen-lockfile && bun run tsc --noEmit
 	cd examples/phoenix_webauthn_demo && EXSWAN_MONOREPO=true MIX_ENV=test mix ecto.create --quiet && EXSWAN_MONOREPO=true MIX_ENV=test mix ecto.migrate --quiet
+	cd examples/phoenix_webauthn_demo && EXSWAN_MONOREPO=true mix assets.setup
 	cd examples/phoenix_webauthn_demo && EXSWAN_MONOREPO=true mix assets.build
 	cd test/browser && bun run test:chromium
 

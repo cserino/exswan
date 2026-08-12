@@ -33,3 +33,5 @@ tmp/
 *.tar
 
 node_modules/
+
+*.db*

@@ -142,7 +142,7 @@ CI runs:
 
 ```bash
 cd examples/phoenix_webauthn_demo
-mix deps.get
+mix setup
 mix phx.server
 ```
 
