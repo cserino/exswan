@@ -359,7 +359,7 @@ The release sequence is:
 - [x] Add malformed base64url, JSON, CBOR, COSE, and authenticator-data cases.
 - [x] Add algorithm-not-offered, UV/UP, BE/BS, counter rollback, and user-handle cases.
 - [ ] Add StreamData properties for base64url and all binary parsers.
-- [ ] Assert that no arbitrary public input crashes a verifier process.
+- [x] Assert that no arbitrary public input crashes a verifier process.
 - [ ] Add Ed25519 and RS256 only with complete vectors across the supported OTP matrix.
 - [ ] Add each attestation format only with trust, certificate-profile, and end-to-end
   rejection coverage.
