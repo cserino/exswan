@@ -31,28 +31,10 @@ defmodule ExSwan.Registration do
   alias ExSwan.{Attestation, AttestationStatement, CBORUtils, Common, Credential, Validator}
 
   # Reference: vendor/SimpleWebAuthn/packages/server/src/registration/generateRegistrationOptions.ts:22-43
-  # Supported crypto algo identifiers - prioritizing EdDSA for better security
+  # Advertise only algorithms covered by complete registration and authentication tests.
   @default_algorithms [
-    # EdDSA (prioritized by SimpleWebAuthn for better security)
-    %Credential.Parameters{type: :public_key, alg: -8},
     # ES256 (ECDSA w/ SHA-256)
-    %Credential.Parameters{type: :public_key, alg: -7},
-    # ES512 (ECDSA w/ SHA-512)
-    %Credential.Parameters{type: :public_key, alg: -36},
-    # PS256 (RSASSA-PSS w/ SHA-256)
-    %Credential.Parameters{type: :public_key, alg: -37},
-    # PS384 (RSASSA-PSS w/ SHA-384)
-    %Credential.Parameters{type: :public_key, alg: -38},
-    # PS512 (RSASSA-PSS w/ SHA-512)
-    %Credential.Parameters{type: :public_key, alg: -39},
-    # RS256 (RSASSA-PKCS1-v1_5 w/ SHA-256)
-    %Credential.Parameters{type: :public_key, alg: -257},
-    # RS384 (RSASSA-PKCS1-v1_5 w/ SHA-384)
-    %Credential.Parameters{type: :public_key, alg: -258},
-    # RS512 (RSASSA-PKCS1-v1_5 w/ SHA-512)
-    %Credential.Parameters{type: :public_key, alg: -259},
-    # RS1 (RSASSA-PKCS1-v1_5 w/ SHA-1) - deprecated, here for legacy support
-    %Credential.Parameters{type: :public_key, alg: -65_535}
+    %Credential.Parameters{type: :public_key, alg: -7}
   ]
 
   @doc """
@@ -203,11 +185,13 @@ defmodule ExSwan.Registration do
   @spec options_to_json(Attestation.CreationOptions.t()) :: map()
   def options_to_json(%Attestation.CreationOptions{} = options) do
     %{
-      "rp" => %{
-        "id" => options.rp.id,
-        "name" => options.rp.name,
-        "icon" => options.rp.icon
-      },
+      "rp" =>
+        %{
+          "id" => options.rp.id,
+          "name" => options.rp.name,
+          "icon" => options.rp.icon
+        }
+        |> remove_nil_values(),
       "user" => %{
         "id" => Base.url_encode64(options.user.id, padding: false),
         "name" => options.user.name,

@@ -115,26 +115,12 @@ defmodule ExSwan.RegistrationOptionsTest do
     end
   end
 
-  describe "algorithm priority" do
-    # Reference: vendor/SimpleWebAuthn/packages/server/src/registration/generateRegistrationOptions.ts:22-43
-    test "should prioritize EdDSA algorithm first", %{rp: rp, user: user} do
-      {:ok, options} = Registration.generate_creation_options(rp, user)
-
-      # EdDSA (-8) should be first in the list
-      assert hd(options.pub_key_cred_params).alg == -8
-    end
-
-    test "should include all supported algorithms by default", %{rp: rp, user: user} do
+  describe "advertised algorithms" do
+    test "advertises only ES256 by default", %{rp: rp, user: user} do
       {:ok, options} = Registration.generate_creation_options(rp, user)
 
       algorithms = Enum.map(options.pub_key_cred_params, & &1.alg)
-
-      # Should include EdDSA, ECDSA, RSA-PSS, RSA PKCS#1 v1.5, and legacy SHA-1
-      expected_algorithms = [-8, -7, -36, -37, -38, -39, -257, -258, -259, -65_535]
-
-      for alg <- expected_algorithms do
-        assert alg in algorithms, "Missing algorithm #{alg}"
-      end
+      assert algorithms == [-7]
     end
   end
 end

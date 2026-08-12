@@ -313,12 +313,6 @@ defmodule ExSwan.Authentication do
   defp format_allow_credentials(nil), do: nil
 
   defp format_allow_credentials(credentials) when is_list(credentials) do
-    Enum.map(credentials, fn %Credential.Descriptor{} = desc ->
-      %{
-        "type" => "public-key",
-        "id" => desc.id,
-        "transports" => desc.transports
-      }
-    end)
+    Enum.map(credentials, &Credential.Descriptor.to_json/1)
   end
 end

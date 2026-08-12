@@ -45,6 +45,31 @@ defmodule ExSwanTest do
   end
 
   describe "registration convenience functions" do
+    test "generates browser-ready registration options and server ceremony state" do
+      challenge = :binary.copy(<<1>>, 32)
+
+      assert {:ok, %{options: options, ceremony: ceremony}} =
+               ExSwan.generate_registration_options(
+                 rp_name: "Example",
+                 rp_id: "example.com",
+                 user_name: "person@example.com",
+                 user_id: <<1, 2, 3, 4>>,
+                 challenge: challenge
+               )
+
+      assert options["rp"] == %{"id" => "example.com", "name" => "Example"}
+      assert options["user"]["id"] == "AQIDBA"
+      assert options["pubKeyCredParams"] == [%{"alg" => -7, "type" => "public-key"}]
+      assert ceremony.challenge == challenge
+      assert ceremony.rp_id == "example.com"
+      assert ceremony.user_id == <<1, 2, 3, 4>>
+    end
+
+    test "reports a missing required registration option" do
+      assert ExSwan.generate_registration_options(rp_name: "Example") ==
+               {:error, {:missing_option, :rp_id}}
+    end
+
     test "generate_registration_options/2 creates valid options" do
       rp = %Credential.RelyingParty{id: "example.com", name: "Example"}
       user = %Credential.User{id: <<1, 2, 3, 4>>, name: "test", display_name: "Test"}
@@ -75,6 +100,28 @@ defmodule ExSwanTest do
       assert json["rp"]["id"] == "example.com"
       assert json["user"]["name"] == "test"
       assert is_binary(json["challenge"])
+    end
+  end
+
+  describe "authentication convenience functions" do
+    test "generates browser-ready authentication options and server ceremony state" do
+      challenge = :binary.copy(<<2>>, 32)
+
+      assert {:ok, %{options: options, ceremony: ceremony}} =
+               ExSwan.generate_authentication_options(
+                 rp_id: "example.com",
+                 challenge: challenge
+               )
+
+      assert options["challenge"] == Base.url_encode64(challenge, padding: false)
+      assert options["rpId"] == "example.com"
+      assert ceremony.challenge == challenge
+      assert ceremony.rp_id == "example.com"
+    end
+
+    test "reports a missing RP ID" do
+      assert ExSwan.generate_authentication_options([]) ==
+               {:error, {:missing_option, :rp_id}}
     end
   end
 

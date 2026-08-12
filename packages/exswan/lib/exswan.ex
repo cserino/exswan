@@ -43,7 +43,16 @@ defmodule ExSwan do
       {:ok, result} = ExSwan.Authentication.verify_assertion(response, options, credential)
   """
 
-  alias ExSwan.{Assertion, Attestation, Authentication, Credential, Registration, Validator}
+  alias ExSwan.{
+    Assertion,
+    Attestation,
+    Authentication,
+    AuthenticationCeremony,
+    Credential,
+    Registration,
+    RegistrationCeremony,
+    Validator
+  }
 
   @doc """
   Generates a cryptographically secure challenge for WebAuthn operations.
@@ -89,6 +98,59 @@ defmodule ExSwan do
   def validate(_), do: {:error, :unsupported_validation_type}
 
   @doc """
+  Generates browser-ready registration options.
+
+  The returned `:options` map can be passed directly to
+  `startRegistration({optionsJSON})`. Keep `:ceremony` on the server for later
+  verification.
+
+  ## Examples
+
+      iex> user_id = <<1, 2, 3, 4>>
+      iex> {:ok, result} = ExSwan.generate_registration_options(
+      ...>   rp_name: "Example",
+      ...>   rp_id: "example.com",
+      ...>   user_name: "person@example.com",
+      ...>   user_id: user_id,
+      ...>   challenge: :binary.copy(<<1>>, 32)
+      ...> )
+      iex> result.options["rp"]["id"]
+      "example.com"
+      iex> result.ceremony.user_id
+      <<1, 2, 3, 4>>
+  """
+  @spec generate_registration_options(keyword()) ::
+          {:ok, %{options: map(), ceremony: RegistrationCeremony.t()}} | {:error, term()}
+  def generate_registration_options(opts) when is_list(opts) do
+    with {:ok, rp_name} <- fetch_option(opts, :rp_name),
+         {:ok, rp_id} <- fetch_option(opts, :rp_id),
+         {:ok, user_name} <- fetch_option(opts, :user_name),
+         {:ok, user_id} <- fetch_option(opts, :user_id) do
+      rp = %Credential.RelyingParty{id: rp_id, name: rp_name}
+
+      user = %Credential.User{
+        id: user_id,
+        name: user_name,
+        display_name: Keyword.get(opts, :user_display_name, user_name)
+      }
+
+      generation_opts =
+        Keyword.drop(opts, [:rp_name, :rp_id, :user_name, :user_id, :user_display_name])
+
+      with {:ok, creation_options} <-
+             Registration.generate_creation_options(rp, user, generation_opts) do
+        ceremony = %RegistrationCeremony{
+          challenge: creation_options.challenge,
+          rp_id: rp_id,
+          user_id: user_id
+        }
+
+        {:ok, %{options: Registration.options_to_json(creation_options), ceremony: ceremony}}
+      end
+    end
+  end
+
+  @doc """
   Convenience function for generating registration options.
 
   Delegates to `ExSwan.Registration.generate_creation_options/3`.
@@ -111,6 +173,40 @@ defmodule ExSwan do
           {:ok, Credential.t()} | {:error, atom()}
   def verify_registration(response, options, origin) do
     Registration.verify_creation(response, options, origin)
+  end
+
+  @doc """
+  Generates browser-ready authentication options.
+
+  The returned `:options` map can be passed directly to
+  `startAuthentication({optionsJSON})`. Keep `:ceremony` on the server for later
+  verification.
+
+  ## Examples
+
+      iex> {:ok, result} = ExSwan.generate_authentication_options(
+      ...>   rp_id: "example.com",
+      ...>   challenge: :binary.copy(<<1>>, 32)
+      ...> )
+      iex> result.options["rpId"]
+      "example.com"
+      iex> result.ceremony.rp_id
+      "example.com"
+  """
+  @spec generate_authentication_options(keyword()) ::
+          {:ok, %{options: map(), ceremony: AuthenticationCeremony.t()}} | {:error, term()}
+  def generate_authentication_options(opts) when is_list(opts) do
+    with {:ok, rp_id} <- fetch_option(opts, :rp_id),
+         generation_opts = Keyword.delete(opts, :rp_id),
+         {:ok, request_options} <-
+           Authentication.generate_request_options(rp_id, generation_opts) do
+      ceremony = %AuthenticationCeremony{
+        challenge: request_options.challenge,
+        rp_id: rp_id
+      }
+
+      {:ok, %{options: Authentication.options_to_json(request_options), ceremony: ceremony}}
+    end
   end
 
   @doc """
@@ -161,5 +257,12 @@ defmodule ExSwan do
   @spec version() :: String.t()
   def version do
     Application.spec(:exswan, :vsn) |> to_string()
+  end
+
+  defp fetch_option(opts, key) do
+    case Keyword.fetch(opts, key) do
+      {:ok, value} -> {:ok, value}
+      :error -> {:error, {:missing_option, key}}
+    end
   end
 end

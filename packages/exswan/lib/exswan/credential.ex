@@ -23,7 +23,10 @@ defmodule ExSwan.Credential do
     :user_display_name,
     :cred_protect,
     :creation_time,
-    :sign_count
+    :sign_count,
+    :transports,
+    :credential_device_type,
+    :credential_backed_up
   ]
 
   @type t :: %__MODULE__{
@@ -36,7 +39,10 @@ defmodule ExSwan.Credential do
           user_display_name: String.t(),
           cred_protect: atom() | nil,
           creation_time: DateTime.t(),
-          sign_count: non_neg_integer()
+          sign_count: non_neg_integer(),
+          transports: [String.t()] | nil,
+          credential_device_type: :single_device | :multi_device | nil,
+          credential_backed_up: boolean() | nil
         }
 
   defmodule Descriptor do
@@ -62,6 +68,8 @@ defmodule ExSwan.Credential do
         "id" => desc.id,
         "transports" => desc.transports
       }
+      |> Enum.reject(fn {_key, value} -> is_nil(value) end)
+      |> Map.new()
     end
   end
 
