@@ -113,14 +113,41 @@ const y = publicKey.slice(33, 65);
 const credentialIDBytes = Buffer.from(credentialID, "base64url");
 const rpIDHash = sha256("example.com");
 const aaguid = new Uint8Array(16);
-// Canonical COSE EC2 key: {1: 2, 3: -7, -1: 1, -2: x, -3: y}.
-// Encode this small fixed map directly so no library-specific Map tag enters authData.
-const cosePublicKey = concat(
-  new Uint8Array([0xa5, 0x01, 0x02, 0x03, 0x26, 0x20, 0x01, 0x21, 0x58, 0x20]),
-  x,
-  new Uint8Array([0x22, 0x58, 0x20]),
-  y,
-);
+function coseEc2Key(options: {
+  keyType?: number;
+  algorithm?: -7 | -8;
+  curve?: number;
+  x?: Uint8Array;
+  y?: Uint8Array | null;
+} = {}): Uint8Array {
+  const keyType = options.keyType ?? 2;
+  const algorithm = options.algorithm ?? -7;
+  const curve = options.curve ?? 1;
+  const xCoordinate = options.x ?? x;
+  const yCoordinate = options.y === undefined ? y : options.y;
+  const entries = yCoordinate === null ? 4 : 5;
+
+  return concat(
+    new Uint8Array([
+      0xa0 + entries,
+      0x01,
+      keyType,
+      0x03,
+      algorithm === -7 ? 0x26 : 0x27,
+      0x20,
+      curve,
+      0x21,
+      0x58,
+      xCoordinate.length,
+    ]),
+    xCoordinate,
+    ...(yCoordinate === null
+      ? []
+      : [new Uint8Array([0x22, 0x58, yCoordinate.length]), yCoordinate]),
+  );
+}
+
+const cosePublicKey = coseEc2Key();
 const credentialIDLength = new Uint8Array([0, credentialIDBytes.length]);
 const registrationAuthenticatorData = concat(
   rpIDHash,
@@ -141,6 +168,18 @@ function registrationAuthenticatorDataWithFlags(flags: number): Uint8Array {
     credentialIDLength,
     credentialIDBytes,
     cosePublicKey,
+  );
+}
+
+function registrationAuthenticatorDataWithCose(coseKey: Uint8Array): Uint8Array {
+  return concat(
+    rpIDHash,
+    new Uint8Array([0x45]),
+    uint32(0),
+    aaguid,
+    credentialIDLength,
+    credentialIDBytes,
+    coseKey,
   );
 }
 const registrationClientDataJSON = JSON.stringify({
@@ -311,6 +350,41 @@ const invalidRegistrationCases = {
       registrationAuthenticatorDataWithFlags(0x55),
     ),
     expectedError: "invalid_backup_flags",
+  },
+  invalidCoseKeyType: {
+    response: withRegistrationAuthenticatorData(
+      registrationResponse,
+      registrationAuthenticatorDataWithCose(coseEc2Key({keyType: 3})),
+    ),
+    expectedError: "invalid_credential_public_key",
+  },
+  unofferedCoseAlgorithm: {
+    response: withRegistrationAuthenticatorData(
+      registrationResponse,
+      registrationAuthenticatorDataWithCose(coseEc2Key({algorithm: -8})),
+    ),
+    expectedError: "credential_algorithm_not_offered",
+  },
+  invalidCoseCurve: {
+    response: withRegistrationAuthenticatorData(
+      registrationResponse,
+      registrationAuthenticatorDataWithCose(coseEc2Key({curve: 2})),
+    ),
+    expectedError: "invalid_credential_public_key",
+  },
+  invalidCoseCoordinateSize: {
+    response: withRegistrationAuthenticatorData(
+      registrationResponse,
+      registrationAuthenticatorDataWithCose(coseEc2Key({x: x.slice(0, 31)})),
+    ),
+    expectedError: "invalid_credential_public_key",
+  },
+  missingCoseCoordinate: {
+    response: withRegistrationAuthenticatorData(
+      registrationResponse,
+      registrationAuthenticatorDataWithCose(coseEc2Key({y: null})),
+    ),
+    expectedError: "invalid_credential_public_key",
   },
 };
 

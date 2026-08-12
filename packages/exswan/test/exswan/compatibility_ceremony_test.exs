@@ -130,6 +130,10 @@ defmodule ExSwan.CompatibilityCeremonyTest do
   defp expected_error("invalid_credential_public_key"), do: :invalid_credential_public_key
   defp expected_error("invalid_signature_encoding"), do: :invalid_signature_encoding
   defp expected_error("unsupported_credential_algorithm"), do: :unsupported_credential_algorithm
+
+  defp expected_error("credential_algorithm_not_offered"),
+    do: :credential_algorithm_not_offered
+
   defp expected_error("user_not_present"), do: :user_not_present
   defp expected_error("user_verification_required"), do: :user_verification_required
   defp expected_error("invalid_backup_flags"), do: :invalid_backup_flags

@@ -218,6 +218,11 @@ defmodule ExSwan.Registration do
          {:ok, authenticator_data} <- parse_authenticator_data(attestation_object["authData"]),
          :ok <- verify_user_presence(authenticator_data),
          {:ok, credential_data} <- extract_credential_data(authenticator_data),
+         :ok <-
+           validate_credential_public_key(
+             credential_data.credential_public_key,
+             options.pub_key_cred_params
+           ),
          {:ok, client_data_hash} <- compute_client_data_hash(response["clientDataJSON"]),
          :ok <-
            verify_attestation_statement(
@@ -527,6 +532,22 @@ defmodule ExSwan.Registration do
        }) do
     {:ok, cred_data}
   end
+
+  defp validate_credential_public_key(
+         %{1 => 2, 3 => algorithm, -1 => 1, -2 => x, -3 => y},
+         offered_algorithms
+       )
+       when is_integer(algorithm) and is_binary(x) and byte_size(x) == 32 and is_binary(y) and
+              byte_size(y) == 32 and is_list(offered_algorithms) do
+    if Enum.any?(offered_algorithms, &(&1.alg == algorithm)) do
+      :ok
+    else
+      {:error, :credential_algorithm_not_offered}
+    end
+  end
+
+  defp validate_credential_public_key(_public_key, _offered_algorithms),
+    do: {:error, :invalid_credential_public_key}
 
   defp verify_attestation_statement(attestation_object, auth_data, client_data_hash) do
     fmt = attestation_object["fmt"]

@@ -330,8 +330,8 @@ The release sequence is:
 
 - [x] Reject CBOR values with trailing bytes in all security-sensitive parsers.
 - [ ] Reject truncated or leftover authenticator data, credential keys, and extensions.
-- [ ] Validate COSE key type, algorithm, curve, coordinate sizes, and required fields.
-- [ ] Enforce that the credential algorithm was offered during registration.
+- [x] Validate COSE key type, algorithm, curve, coordinate sizes, and required fields.
+- [x] Enforce that the credential algorithm was offered during registration.
 - [ ] Enforce ceremony type, challenge, origin, RP ID hash, UP, and configured UV.
 - [ ] Reject the invalid backup-state combination `BS = 1` and `BE = 0`.
 - [ ] Derive and return device type and backup state for both ceremonies.
