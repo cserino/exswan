@@ -176,6 +176,28 @@ defmodule ExSwan do
   end
 
   @doc """
+  Verifies a complete registration response from `@simplewebauthn/browser`.
+
+  Pass the browser response without extracting its nested `response` object.
+
+  ## Examples
+
+      ExSwan.verify_registration_response(
+        response: browser_json,
+        expected_challenge: challenge,
+        expected_origin: "https://example.com",
+        expected_rp_id: "example.com"
+      )
+  """
+  @spec verify_registration_response(keyword()) ::
+          {:ok, ExSwan.RegistrationResult.t()} | {:error, term()}
+  def verify_registration_response(opts) when is_list(opts) do
+    with {:ok, response} <- fetch_option(opts, :response) do
+      Registration.verify_response(response, Keyword.delete(opts, :response))
+    end
+  end
+
+  @doc """
   Generates browser-ready authentication options.
 
   The returned `:options` map can be passed directly to

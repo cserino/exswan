@@ -311,7 +311,8 @@ The release sequence is:
   public key, sign count, transports, device type, and backup state.
 - [x] Define private ceremony state for registration and authentication.
 - [ ] Implement the four keyword-based functions documented in this design. Generation
-  functions are complete; verification functions remain.
+  functions and registration verification are complete; authentication verification
+  remains.
 - [x] Return browser-ready maps and ceremony state from both generation functions.
 - [ ] Mark old struct-based and `options_to_json/1` interfaces for migration or removal.
 - [ ] Document every public function, option, result field, and error.
@@ -319,11 +320,12 @@ The release sequence is:
 ### 2. Make browser JSON a strict input seam
 
 - [ ] Add total parsers for registration and authentication browser response objects.
-- [ ] Accept string-keyed maps from JSON decoders without caller conversion.
-- [ ] Validate required outer fields, nested response fields, and `type` values.
-- [ ] Implement one strict unpadded-base64url decoder and use it for every binary field.
-- [ ] Validate `id`/`rawId` and attested or stored credential ID correspondence.
-- [ ] Parse and preserve transports and client extension results.
+  Registration is complete; authentication remains.
+- [x] Accept string-keyed registration maps from JSON decoders without caller conversion.
+- [x] Validate required registration outer fields, nested response fields, and `type`.
+- [x] Implement one strict unpadded-base64url decoder for the new browser-input seam.
+- [x] Validate registration `id`/`rawId` and attested credential ID correspondence.
+- [x] Parse and preserve registration transports and client extension results.
 - [ ] Handle optional authentication `userHandle` and enforce expected-user matching.
 - [ ] Ensure arbitrary maps and binaries return documented errors without raising.
 

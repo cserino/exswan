@@ -39,7 +39,7 @@ ExSwan must not accept a response that WebAuthn requires a relying party to reje
 - Browser-ready registration and authentication option generation is available at the
   top-level `ExSwan` interface.
 - ES256 is the only default advertised algorithm.
-- Complete browser-response parsing and structured verification results are in
-  progress.
+- Complete registration browser-response parsing and structured verification results
+  are available. Authentication response compatibility is in progress.
 - `none` is the initial attestation target. Other formats are not part of the initial
   compatibility claim.

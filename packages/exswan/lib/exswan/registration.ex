@@ -28,7 +28,18 @@ defmodule ExSwan.Registration do
       {:ok, credential} = ExSwan.Registration.verify_creation(response, options, origin)
   """
 
-  alias ExSwan.{Attestation, AttestationStatement, CBORUtils, Common, Credential, Validator}
+  alias ExSwan.{
+    Attestation,
+    AttestationStatement,
+    Base64URL,
+    CBORUtils,
+    Common,
+    Credential,
+    RegistrationResult,
+    Validator
+  }
+
+  @transports ~w(ble cable hybrid internal nfc smart-card usb)
 
   # Reference: vendor/SimpleWebAuthn/packages/server/src/registration/generateRegistrationOptions.ts:22-43
   # Advertise only algorithms covered by complete registration and authentication tests.
@@ -143,8 +154,64 @@ defmodule ExSwan.Registration do
     do: verify_creation(response, options, [origin])
 
   def verify_creation(response, %Attestation.CreationOptions{} = options, origins) do
+    with {:ok, verification} <- verify_creation_details(response, options, origins) do
+      {:ok, verification.credential}
+    end
+  end
+
+  @doc false
+  @spec verify_response(map(), keyword()) :: {:ok, RegistrationResult.t()} | {:error, term()}
+  def verify_response(response, opts) when is_map(response) and is_list(opts) do
+    with {:ok, challenge} <- fetch_option(opts, :expected_challenge),
+         {:ok, origin} <- fetch_option(opts, :expected_origin),
+         {:ok, rp_id} <- fetch_option(opts, :expected_rp_id),
+         {:ok, normalized} <- normalize_browser_response(response),
+         options <- verification_options(challenge, rp_id),
+         {:ok, verification} <- verify_creation_details(normalized.response, options, origin),
+         :ok <- verify_supported_attestation_format(verification.attestation_format),
+         :ok <- verify_registration_algorithm(verification.credential, normalized),
+         :ok <- verify_credential_correspondence(normalized, verification.credential),
+         :ok <- verify_backup_flags(verification.authenticator_data.flags),
+         :ok <-
+           verify_user_verification_requirement(
+             verification.authenticator_data.flags,
+             Keyword.get(opts, :require_user_verification, true)
+           ) do
+      flags = verification.authenticator_data.flags
+      credential_device_type = credential_device_type(flags)
+
+      credential = %{
+        verification.credential
+        | transports: normalized.transports,
+          credential_device_type: credential_device_type,
+          credential_backed_up: flags.backup_state
+      }
+
+      {:ok,
+       %RegistrationResult{
+         credential: credential,
+         aaguid: format_aaguid(verification.credential_data.aaguid),
+         attestation_format: verification.attestation_format,
+         user_verified: flags.user_verified,
+         credential_device_type: credential_device_type,
+         credential_backed_up: flags.backup_state,
+         authenticator_extension_results: verification.authenticator_data.extensions || %{},
+         client_extension_results: normalized.client_extension_results,
+         authenticator_attachment: normalized.authenticator_attachment,
+         origin: verification.client_data["origin"],
+         rp_id: rp_id
+       }}
+    end
+  rescue
+    _error in [ArgumentError, FunctionClauseError, MatchError] ->
+      {:error, :invalid_registration_response}
+  end
+
+  def verify_response(_response, _opts), do: {:error, :invalid_registration_response}
+
+  defp verify_creation_details(response, %Attestation.CreationOptions{} = options, origins) do
     with :ok <- validate_response_structure(response),
-         {:ok, _client_data} <-
+         {:ok, client_data} <-
            parse_and_verify_client_data(response["clientDataJSON"], options.challenge, origins),
          {:ok, attestation_object} <- parse_attestation_object(response["attestationObject"]),
          :ok <- verify_rp_id_hash(attestation_object["authData"], options.rp.id),
@@ -172,7 +239,14 @@ defmodule ExSwan.Registration do
         sign_count: authenticator_data.sign_count
       }
 
-      {:ok, credential}
+      {:ok,
+       %{
+         credential: credential,
+         credential_data: credential_data,
+         authenticator_data: authenticator_data,
+         attestation_format: attestation_format(attestation_object["fmt"]),
+         client_data: client_data
+       }}
     end
   end
 
@@ -315,13 +389,21 @@ defmodule ExSwan.Registration do
 
   defp verify_rp_id_hash(%CBOR.Tag{tag: :bytes, value: auth_data_bytes}, rp_id)
        when is_binary(auth_data_bytes) do
-    # First 32 bytes of authenticator data is RP ID hash
-    <<rp_id_hash::binary-size(32), _rest::binary>> = auth_data_bytes
-    Common.verify_rp_id_hash(rp_id_hash, rp_id)
+    verify_rp_id_hash(auth_data_bytes, rp_id)
   end
+
+  defp verify_rp_id_hash(<<rp_id_hash::binary-size(32), _rest::binary>>, rp_id),
+    do: Common.verify_rp_id_hash(rp_id_hash, rp_id)
+
+  defp verify_rp_id_hash(_auth_data, _rp_id), do: {:error, :invalid_authenticator_data}
 
   defp parse_authenticator_data(%CBOR.Tag{tag: :bytes, value: auth_data_bytes})
        when is_binary(auth_data_bytes) do
+    parse_authenticator_data(auth_data_bytes)
+  end
+
+  defp parse_authenticator_data(auth_data_bytes)
+       when is_binary(auth_data_bytes) and byte_size(auth_data_bytes) >= 37 do
     # Parse authenticator data according to WebAuthn spec
     <<
       rp_id_hash::binary-size(32),
@@ -381,6 +463,8 @@ defmodule ExSwan.Registration do
 
     {:ok, authenticator_data}
   end
+
+  defp parse_authenticator_data(_auth_data), do: {:error, :invalid_authenticator_data}
 
   defp parse_attested_credential_data(data, extension_data_included) do
     <<
@@ -453,4 +537,177 @@ defmodule ExSwan.Registration do
         {:error, :invalid_client_data_encoding}
     end
   end
+
+  defp normalize_browser_response(response) do
+    with {:ok, id} <- fetch_string(response, "id"),
+         {:ok, raw_id} <- fetch_string(response, "rawId"),
+         :ok <- verify_public_key_type(response["type"]),
+         {:ok, decoded_id} <- decode_field(id, :invalid_credential_id),
+         {:ok, decoded_raw_id} <- decode_field(raw_id, :invalid_raw_id),
+         :ok <- verify_matching_ids(id, raw_id, decoded_id, decoded_raw_id),
+         {:ok, authenticator_response} <- fetch_map(response, "response"),
+         :ok <- validate_browser_authenticator_response(authenticator_response),
+         {:ok, transports} <- validate_transports(authenticator_response["transports"]),
+         {:ok, client_extension_results} <- fetch_map(response, "clientExtensionResults"),
+         {:ok, authenticator_attachment} <-
+           validate_authenticator_attachment(response["authenticatorAttachment"]) do
+      {:ok,
+       %{
+         id: id,
+         raw_id_bytes: decoded_raw_id,
+         response: authenticator_response,
+         transports: transports,
+         client_extension_results: client_extension_results,
+         authenticator_attachment: authenticator_attachment,
+         public_key_algorithm: authenticator_response["publicKeyAlgorithm"]
+       }}
+    end
+  end
+
+  defp validate_browser_authenticator_response(response) do
+    with {:ok, client_data_json} <- fetch_string(response, "clientDataJSON"),
+         {:ok, attestation_object} <- fetch_string(response, "attestationObject"),
+         {:ok, _decoded} <- decode_field(client_data_json, :invalid_client_data_encoding),
+         {:ok, _decoded} <- decode_field(attestation_object, :invalid_attestation_object),
+         :ok <- validate_optional_base64url(response, "publicKey", :invalid_public_key),
+         :ok <- validate_optional_integer(response, "publicKeyAlgorithm") do
+      :ok
+    end
+  end
+
+  defp validate_optional_base64url(response, key, error) do
+    case Map.fetch(response, key) do
+      :error -> :ok
+      {:ok, value} -> decode_field(value, error) |> success_to_ok()
+    end
+  end
+
+  defp validate_optional_integer(response, key) do
+    case Map.fetch(response, key) do
+      :error -> :ok
+      {:ok, value} when is_integer(value) -> :ok
+      {:ok, _value} -> {:error, :invalid_public_key_algorithm}
+    end
+  end
+
+  defp validate_transports(nil), do: {:ok, []}
+
+  defp validate_transports(transports) when is_list(transports) do
+    if Enum.all?(transports, &(&1 in @transports)) and Enum.uniq(transports) == transports do
+      {:ok, transports}
+    else
+      {:error, :invalid_transports}
+    end
+  end
+
+  defp validate_transports(_transports), do: {:error, :invalid_transports}
+
+  defp validate_authenticator_attachment(nil), do: {:ok, nil}
+
+  defp validate_authenticator_attachment(value) when value in ["platform", "cross-platform"],
+    do: {:ok, value}
+
+  defp validate_authenticator_attachment(_value), do: {:error, :invalid_authenticator_attachment}
+
+  defp verify_public_key_type("public-key"), do: :ok
+  defp verify_public_key_type(_type), do: {:error, :invalid_credential_type}
+
+  defp verify_matching_ids(id, raw_id, decoded_id, decoded_raw_id)
+       when id == raw_id and decoded_id == decoded_raw_id,
+       do: :ok
+
+  defp verify_matching_ids(_id, _raw_id, _decoded_id, _decoded_raw_id),
+    do: {:error, :credential_id_mismatch}
+
+  defp verify_credential_correspondence(normalized, credential) do
+    case Base64URL.decode(credential.id) do
+      {:ok, credential_id} when credential_id == normalized.raw_id_bytes -> :ok
+      _ -> {:error, :credential_id_mismatch}
+    end
+  end
+
+  defp verify_backup_flags(%Attestation.Flags{backup_eligible: false, backup_state: true}),
+    do: {:error, :invalid_backup_flags}
+
+  defp verify_backup_flags(%Attestation.Flags{}), do: :ok
+
+  defp verify_user_verification_requirement(%Attestation.Flags{user_verified: true}, true),
+    do: :ok
+
+  defp verify_user_verification_requirement(%Attestation.Flags{user_verified: false}, true),
+    do: {:error, :user_verification_required}
+
+  defp verify_user_verification_requirement(%Attestation.Flags{}, false), do: :ok
+
+  defp verify_user_verification_requirement(%Attestation.Flags{}, _value),
+    do: {:error, :invalid_user_verification_requirement}
+
+  defp verify_registration_algorithm(%Credential{public_key: %{3 => -7}}, %{
+         public_key_algorithm: algorithm
+       })
+       when algorithm in [nil, -7],
+       do: :ok
+
+  defp verify_registration_algorithm(%Credential{}, _normalized),
+    do: {:error, :unsupported_credential_algorithm}
+
+  defp credential_device_type(%Attestation.Flags{backup_eligible: true}), do: :multi_device
+  defp credential_device_type(%Attestation.Flags{backup_eligible: false}), do: :single_device
+
+  defp verify_supported_attestation_format(:none), do: :ok
+  defp verify_supported_attestation_format(_format), do: {:error, :unsupported_attestation_format}
+
+  defp attestation_format("none"), do: :none
+  defp attestation_format("packed"), do: :packed
+  defp attestation_format("fido-u2f"), do: :fido_u2f
+  defp attestation_format(_format), do: :unknown
+
+  defp verification_options(challenge, rp_id) do
+    %Attestation.CreationOptions{
+      challenge: challenge,
+      rp: %Credential.RelyingParty{id: rp_id, name: ""},
+      user: %Credential.User{id: <<>>, name: "", display_name: ""},
+      pub_key_cred_params: [%Credential.Parameters{type: :public_key, alg: -7}]
+    }
+  end
+
+  defp format_aaguid(
+         <<a::binary-size(4), b::binary-size(2), c::binary-size(2), d::binary-size(2),
+           e::binary-size(6)>>
+       ) do
+    Enum.map_join([a, b, c, d, e], "-", &Base.encode16(&1, case: :lower))
+  end
+
+  defp fetch_option(opts, key) do
+    case Keyword.fetch(opts, key) do
+      {:ok, value} -> {:ok, value}
+      :error -> {:error, {:missing_option, key}}
+    end
+  end
+
+  defp fetch_string(map, key) do
+    case Map.fetch(map, key) do
+      {:ok, value} when is_binary(value) -> {:ok, value}
+      :error -> {:error, {:missing_field, key}}
+      {:ok, _value} -> {:error, {:invalid_field, key}}
+    end
+  end
+
+  defp fetch_map(map, key) do
+    case Map.fetch(map, key) do
+      {:ok, value} when is_map(value) -> {:ok, value}
+      :error -> {:error, {:missing_field, key}}
+      {:ok, _value} -> {:error, {:invalid_field, key}}
+    end
+  end
+
+  defp decode_field(value, error) do
+    case Base64URL.decode(value) do
+      {:ok, decoded} -> {:ok, decoded}
+      {:error, :invalid_base64url} -> {:error, error}
+    end
+  end
+
+  defp success_to_ok({:ok, _value}), do: :ok
+  defp success_to_ok({:error, _reason} = error), do: error
 end
