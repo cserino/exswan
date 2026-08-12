@@ -82,7 +82,7 @@ compatibility-fixtures:
 compatibility-check:
 	cd test/compatibility && bun install --frozen-lockfile && bun run check
 	@git diff --exit-code -- test/compatibility/fixtures
-	cd packages/exswan && mix test test/exswan/compatibility_options_test.exs
+	cd packages/exswan && mix test test/exswan/compatibility_options_test.exs test/exswan/compatibility_ceremony_test.exs
 
 clean:
 	@for p in $(PACKAGES); do \

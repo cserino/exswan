@@ -30,3 +30,5 @@ tmp/
 
 # Hex package build artifacts
 *.tar
+
+node_modules/

@@ -51,5 +51,51 @@
     ],
     "timeout": 60000,
     "userVerification": "preferred"
+  },
+  "ceremony": {
+    "origin": "https://example.com",
+    "rpID": "example.com",
+    "userID": "AQIDBA",
+    "registrationResponse": {
+      "id": "CQgHBg",
+      "rawId": "CQgHBg",
+      "type": "public-key",
+      "authenticatorAttachment": "platform",
+      "clientExtensionResults": {
+        "credProps": {
+          "rk": true
+        }
+      },
+      "response": {
+        "attestationObject": "uQADY2ZtdGRub25laGF1dGhEYXRhWIijeab27q-5pV43jBGANOJ1Hmgvq58tMKsT0hJVhs4ZR0UAAAAAAAAAAAAAAAAAAAAAAAAAAAAECQgHBqUBAgMmIAEhWCBrF9Hy4SxCR_i85uVjpEDydwN9gS3rM6D0oTlF2JjCliJYIE_jQuL-Gn-bjufrSnwPnhYrzjNXazFezsu2QGg3v1H1Z2F0dFN0bXS5AAA",
+        "clientDataJSON": "eyJ0eXBlIjoid2ViYXV0aG4uY3JlYXRlIiwiY2hhbGxlbmdlIjoiUVZGRlFrRlJSVUpCVVVWQ1FWRkZRa0ZSUlVKQlVVVkNRVkZGUWtGUlJVSkJVVVZDUVZGRlFrRlJSUSIsIm9yaWdpbiI6Imh0dHBzOi8vZXhhbXBsZS5jb20iLCJjcm9zc09yaWdpbiI6ZmFsc2V9",
+        "transports": [
+          "internal"
+        ],
+        "publicKeyAlgorithm": -7
+      }
+    },
+    "authenticationResponse": {
+      "id": "CQgHBg",
+      "rawId": "CQgHBg",
+      "type": "public-key",
+      "authenticatorAttachment": "platform",
+      "clientExtensionResults": {},
+      "response": {
+        "authenticatorData": "o3mm9u6vuaVeN4wRgDTidR5oL6ufLTCrE9ISVYbOGUcFAAAAAQ",
+        "clientDataJSON": "eyJ0eXBlIjoid2ViYXV0aG4uZ2V0IiwiY2hhbGxlbmdlIjoiUVZGRlFrRlJSVUpCVVVWQ1FWRkZRa0ZSUlVKQlVVVkNRVkZGUWtGUlJVSkJVVVZDUVZGRlFrRlJSUSIsIm9yaWdpbiI6Imh0dHBzOi8vZXhhbXBsZS5jb20iLCJjcm9zc09yaWdpbiI6ZmFsc2V9",
+        "signature": "MEQCICOKewBV79NIvUtGBWAAEAJ8GnDy4-LNc_62MQb0rq22AiBkXrA-N1MZI8FGs2CkqDMK2wBqQL4dUP2matWL5HI1lA",
+        "userHandle": "AQIDBA"
+      }
+    },
+    "expected": {
+      "credentialID": "CQgHBg",
+      "algorithm": -7,
+      "registrationSignCount": 0,
+      "authenticationSignCount": 1,
+      "attestationFormat": "none",
+      "credentialDeviceType": "single_device",
+      "credentialBackedUp": false
+    }
   }
 }

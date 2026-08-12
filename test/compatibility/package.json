@@ -8,8 +8,10 @@
     "check": "bun run typecheck && bun run generate"
   },
   "dependencies": {
+    "@noble/curves": "1.9.7",
     "@simplewebauthn/browser": "13.1.2",
-    "@simplewebauthn/server": "13.1.2"
+    "@simplewebauthn/server": "13.1.2",
+    "cbor-x": "1.6.0"
   },
   "devDependencies": {
     "@types/bun": "1.2.20",

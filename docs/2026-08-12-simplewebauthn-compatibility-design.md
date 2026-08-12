@@ -12,7 +12,7 @@ Options emitted by ExSwan must pass directly to `startRegistration({optionsJSON}
 `startAuthentication({optionsJSON})`.
 
 SimpleWebAuthn compatibility governs wire shapes, field names, defaults, and returned
-ceremony information. WebAuthn compliance and protocol safety govern verification.
+ceremony information. WebAuthn compliance and protocol safety govern verificatioqn.
 
 > ExSwan may reject responses that SimpleWebAuthn accepts when current protocol safety
 > requires rejection. ExSwan must never accept a response that WebAuthn requires a
@@ -283,22 +283,6 @@ The test layers are:
 4. StreamData properties and fuzz cases for every binary parser and public verifier.
 5. FIDO Alliance conformance tests against a private HTTP harness.
 
-The generated fixtures are the executable specification for the JavaScript/Elixir
-seam. Tests must exercise the same four-function `ExSwan` interface that applications
-use. They must not reach through that interface to make an incompatible implementation
-pass.
-
-A compatibility-sensitive task is complete only when its generated compatibility or
-conformance test passes. Implement each ceremony as a vertical red-green slice: add or
-select a fixture, observe the failing public-interface test, implement the behavior,
-and make the test pass. Do not complete all parsing and verification work before
-testing the JavaScript/Elixir seam.
-
-Bootstrap the private FIDO HTTP harness early enough to establish a reproducible
-command, the applicable test inventory, exclusions, and a results ledger. Connect the
-full suite after the `exswan_plug` HTTP interface is stable enough to avoid harness
-churn.
-
 The release sequence is:
 
 1. Pass pinned SimpleWebAuthn compatibility fixtures.
@@ -308,81 +292,67 @@ The release sequence is:
 5. Restore compliance or production-readiness claims only after the evidence supports
    them.
 
-## Implementation workstreams
-
-The numbered workstreams show dependency order. Within workstreams 2 through 6, prefer
-thin registration-to-authentication slices over completing one technical layer at a
-time.
+## Implementation task list
 
 ### 0. Establish the baseline
 
-- [x] Select and record the supported WebAuthn level and pinned
+- [ ] Select and record the supported WebAuthn level and pinned
   `@simplewebauthn/browser` major and exact fixture-generator version.
-- [x] Add `docs/compatibility.md` with the version policy and known deviations.
+- [ ] Add `docs/compatibility.md` with the version policy and known deviations.
 - [ ] Remove unsupported compliance and production-readiness claims from package docs.
 - [ ] Record the supported Elixir and OTP matrix for cryptographic behavior.
 - [ ] Add architecture tests or dependency checks that prevent Plug/Phoenix/Ecto from
   entering `exswan` and protocol internals from entering `exswan_plug`.
 
-### 1. Build the executable compatibility specification
+### 1. Define the core interface and types
 
-- [x] Create a small TypeScript fixture project with exact SimpleWebAuthn dependencies.
-- [x] Generate deterministic registration and authentication reference options.
-- [x] Test generated options against the browser package's accepted JSON types.
-- [x] Add a reproducible root command to regenerate fixtures.
-- [x] Add a root check that fails when committed fixtures differ after generation.
-- [ ] Run the compatibility check in CI.
-- [x] Add an ExUnit fixture loader and public-interface option tests.
-- [ ] Generate a complete ES256 `none` registration-to-authentication response vector.
-- [ ] Create the private HTTP harness skeleton, test inventory, exclusions, and results
-  ledger.
-
-### 2. Define the core interface and types
-
-- [x] Add `ExSwan.RegistrationResult` and `ExSwan.AuthenticationResult`.
+- [ ] Add `ExSwan.RegistrationResult` and `ExSwan.AuthenticationResult`.
 - [ ] Redefine `ExSwan.Credential` as the public stored-credential value, including ID,
   public key, sign count, transports, device type, and backup state.
-- [x] Define private ceremony state for registration and authentication.
-- [x] Implement the four keyword-based functions documented in this design.
-- [x] Return browser-ready maps and ceremony state from both generation functions.
+- [ ] Define private ceremony state for registration and authentication.
+- [ ] Implement the four keyword-based functions documented in this design.
+- [ ] Return browser-ready maps and ceremony state from both generation functions.
 - [ ] Mark old struct-based and `options_to_json/1` interfaces for migration or removal.
 - [ ] Document every public function, option, result field, and error.
 
-### 3. Make browser JSON a strict input seam
+### 2. Make browser JSON a strict input seam
 
-- [x] Add total parsers for registration and authentication browser response objects.
-- [x] Accept string-keyed registration maps from JSON decoders without caller conversion.
-- [x] Validate required registration outer fields, nested response fields, and `type`.
-- [x] Implement one strict unpadded-base64url decoder for the new browser-input seam.
-- [x] Validate registration `id`/`rawId` and attested credential ID correspondence.
-- [x] Parse and preserve registration transports and client extension results.
-- [x] Handle optional authentication `userHandle` and enforce expected-user matching.
+- [ ] Add total parsers for registration and authentication browser response objects.
+- [ ] Accept string-keyed maps from JSON decoders without caller conversion.
+- [ ] Validate required outer fields, nested response fields, and `type` values.
+- [ ] Implement one strict unpadded-base64url decoder and use it for every binary field.
+- [ ] Validate `id`/`rawId` and attested or stored credential ID correspondence.
+- [ ] Parse and preserve transports and client extension results.
+- [ ] Handle optional authentication `userHandle` and enforce expected-user matching.
 - [ ] Ensure arbitrary maps and binaries return documented errors without raising.
 
-### 4. Harden protocol parsing and verification
+### 3. Harden protocol parsing and verification
 
 - [ ] Reject CBOR values with trailing bytes in all security-sensitive parsers.
 - [ ] Reject truncated or leftover authenticator data, credential keys, and extensions.
-  Authentication authenticator data is complete; registration parsing remains.
 - [ ] Validate COSE key type, algorithm, curve, coordinate sizes, and required fields.
 - [ ] Enforce that the credential algorithm was offered during registration.
 - [ ] Enforce ceremony type, challenge, origin, RP ID hash, UP, and configured UV.
-- [x] Reject the invalid backup-state combination `BS = 1` and `BE = 0`.
-- [x] Derive and return device type and backup state for both ceremonies.
-- [x] Implement safe signature-counter rules and always return `new_sign_count`.
+- [ ] Reject the invalid backup-state combination `BS = 1` and `BE = 0`.
+- [ ] Derive and return device type and backup state for both ceremonies.
+- [ ] Implement safe signature-counter rules and always return `new_sign_count`.
 - [ ] Implement `none` attestation as the initial supported format.
-- [x] Limit generated algorithms to ES256 until other algorithms pass end-to-end tests.
+- [ ] Limit generated algorithms to ES256 until other algorithms pass end-to-end tests.
 - [ ] Audit rescue/catch clauses so programmer errors are not mislabeled as user input.
 
-### 5. Expand generated compatibility fixtures
+### 4. Build generated compatibility fixtures
 
+- [ ] Create a small TypeScript fixture project with lockfile-pinned SimpleWebAuthn
+  dependencies.
+- [ ] Generate registration and authentication options for comparison with ExSwan.
 - [ ] Generate browser response JSON and expected verification information.
 - [ ] Generate invalid cases by mutating valid fixtures.
+- [ ] Add a reproducible root command to regenerate fixtures.
+- [ ] Make CI fail when committed fixtures differ from generated fixtures.
+- [ ] Test ExSwan options against SimpleWebAuthn browser types and expected shapes.
 - [ ] Test unmodified SimpleWebAuthn browser JSON against ExSwan verification.
-- [ ] Add fixtures for each supported option and optional browser response field.
-- [ ] Record each intentional difference next to its fixture assertion.
 
-### 6. Complete cryptographic and rejection coverage
+### 5. Complete cryptographic and rejection coverage
 
 - [ ] Add a full ES256 registration-to-authentication vector.
 - [ ] Add wrong challenge, origin, RP ID, ceremony type, and credential ID cases.
@@ -394,7 +364,7 @@ time.
 - [ ] Add each attestation format only with trust, certificate-profile, and end-to-end
   rejection coverage.
 
-### 7. Implement `exswan_plug`
+### 6. Implement `exswan_plug`
 
 - [ ] Define `ExSwan.Plug.Store` callback types and error semantics.
 - [ ] Define a ceremony-store seam with atomic expiry and one-time consumption.
@@ -408,7 +378,7 @@ time.
 - [ ] Emit secret-free telemetry for start, success, and failure.
 - [ ] Add optional Phoenix router/controller helpers without a Phoenix core dependency.
 
-### 8. Migrate the demo and documentation
+### 7. Migrate the demo and documentation
 
 - [ ] Move all ceremony state and security logic out of the demo and into
   `exswan_plug`.
@@ -419,10 +389,11 @@ time.
 - [ ] Add a credential persistence and atomic-update guide for store adapters.
 - [ ] Label the example as a demo and document its deployment limits.
 
-### 9. Validate releases
+### 8. Validate releases
 
 - [ ] Run `make format-check`, `make compile`, `make test`, and `make hex-build`.
 - [ ] Test registration and authentication in current Chrome, Firefox, and Safari.
+- [ ] Build the private HTTP harness for FIDO Alliance conformance tooling.
 - [ ] Run the applicable conformance suite and track failures as release blockers.
 - [ ] Verify that each Hex package contains only its own public files and dependencies.
 - [ ] Publish independent package versions and coordinate them only when compatibility

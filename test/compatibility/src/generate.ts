@@ -3,14 +3,45 @@ import {
   generateRegistrationOptions,
 } from "@simplewebauthn/server";
 import type {
+  AuthenticationResponseJSON,
   PublicKeyCredentialCreationOptionsJSON,
   PublicKeyCredentialRequestOptionsJSON,
+  RegistrationResponseJSON,
 } from "@simplewebauthn/browser";
 import {mkdir, writeFile} from "node:fs/promises";
+import {createHash} from "node:crypto";
+import {p256} from "@noble/curves/p256";
+import {Encoder} from "cbor-x";
 
 const fixtureDirectory = new URL("../fixtures/", import.meta.url);
 const challenge = "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE";
 const credentialID = "CQgHBg";
+const origin = "https://example.com";
+const cbor = new Encoder({tagUint8Array: false, useRecords: false});
+
+function sha256(value: Uint8Array | string): Uint8Array {
+  return createHash("sha256").update(value).digest();
+}
+
+function base64url(value: Uint8Array | string): string {
+  return Buffer.from(value).toString("base64url");
+}
+
+function uint32(value: number): Uint8Array {
+  const bytes = new Uint8Array(4);
+  new DataView(bytes.buffer).setUint32(0, value);
+  return bytes;
+}
+
+function concat(...values: Uint8Array[]): Uint8Array {
+  const result = new Uint8Array(values.reduce((size, value) => size + value.length, 0));
+  let offset = 0;
+  for (const value of values) {
+    result.set(value, offset);
+    offset += value.length;
+  }
+  return result;
+}
 
 const registration = await generateRegistrationOptions({
   rpName: "Example",
@@ -39,6 +70,87 @@ const authentication = await generateAuthenticationOptions({
 const browserRegistrationOptions: PublicKeyCredentialCreationOptionsJSON = registration;
 const browserAuthenticationOptions: PublicKeyCredentialRequestOptionsJSON = authentication;
 
+const privateKey = new Uint8Array(32);
+privateKey[31] = 1;
+const publicKey = p256.getPublicKey(privateKey, false);
+const x = publicKey.slice(1, 33);
+const y = publicKey.slice(33, 65);
+const credentialIDBytes = Buffer.from(credentialID, "base64url");
+const rpIDHash = sha256("example.com");
+const aaguid = new Uint8Array(16);
+// Canonical COSE EC2 key: {1: 2, 3: -7, -1: 1, -2: x, -3: y}.
+// Encode this small fixed map directly so no library-specific Map tag enters authData.
+const cosePublicKey = concat(
+  new Uint8Array([0xa5, 0x01, 0x02, 0x03, 0x26, 0x20, 0x01, 0x21, 0x58, 0x20]),
+  x,
+  new Uint8Array([0x22, 0x58, 0x20]),
+  y,
+);
+const credentialIDLength = new Uint8Array([0, credentialIDBytes.length]);
+const registrationAuthenticatorData = concat(
+  rpIDHash,
+  new Uint8Array([0x45]), // UP, UV, and attested credential data
+  uint32(0),
+  aaguid,
+  credentialIDLength,
+  credentialIDBytes,
+  cosePublicKey,
+);
+const registrationClientDataJSON = JSON.stringify({
+  type: "webauthn.create",
+  challenge: registration.challenge,
+  origin,
+  crossOrigin: false,
+});
+const attestationObject = cbor.encode({
+  fmt: "none",
+  authData: registrationAuthenticatorData,
+  attStmt: {},
+});
+const registrationResponse: RegistrationResponseJSON = {
+  id: credentialID,
+  rawId: credentialID,
+  type: "public-key",
+  authenticatorAttachment: "platform",
+  clientExtensionResults: {credProps: {rk: true}},
+  response: {
+    attestationObject: base64url(attestationObject),
+    clientDataJSON: base64url(registrationClientDataJSON),
+    transports: ["internal"],
+    publicKeyAlgorithm: -7,
+  },
+};
+
+const authenticationClientDataJSON = JSON.stringify({
+  type: "webauthn.get",
+  challenge: authentication.challenge,
+  origin,
+  crossOrigin: false,
+});
+const authenticationAuthenticatorData = concat(
+  rpIDHash,
+  new Uint8Array([0x05]), // UP and UV
+  uint32(1),
+);
+const signedData = concat(
+  authenticationAuthenticatorData,
+  sha256(authenticationClientDataJSON),
+);
+const signature = p256.sign(sha256(signedData), privateKey).toDERRawBytes();
+const authenticationResponse: AuthenticationResponseJSON = {
+  id: credentialID,
+  rawId: credentialID,
+  type: "public-key",
+  authenticatorAttachment: "platform",
+  clientExtensionResults: {},
+  response: {
+    authenticatorData: base64url(authenticationAuthenticatorData),
+    clientDataJSON: base64url(authenticationClientDataJSON),
+    signature: base64url(signature),
+    userHandle: base64url(new Uint8Array([1, 2, 3, 4])),
+  },
+};
+
 await mkdir(fixtureDirectory, {recursive: true});
 await writeFile(
   new URL("options.json", fixtureDirectory),
@@ -51,6 +163,22 @@ await writeFile(
       inputs: {challenge, credentialID},
       registration: browserRegistrationOptions,
       authentication: browserAuthenticationOptions,
+      ceremony: {
+        origin,
+        rpID: "example.com",
+        userID: "AQIDBA",
+        registrationResponse,
+        authenticationResponse,
+        expected: {
+          credentialID,
+          algorithm: -7,
+          registrationSignCount: 0,
+          authenticationSignCount: 1,
+          attestationFormat: "none",
+          credentialDeviceType: "single_device",
+          credentialBackedUp: false,
+        },
+      },
     },
     null,
     2,
