@@ -226,8 +226,6 @@ defmodule ExSwan.CBORUtils do
     |> Enum.into(%{})
   end
 
-  defp fix_firefox_cbor_keys(decoded), do: decoded
-
   # Convert Firefox string values to proper COSE values
   defp convert_firefox_value("OKP"), do: 1
   defp convert_firefox_value("EC2"), do: 2

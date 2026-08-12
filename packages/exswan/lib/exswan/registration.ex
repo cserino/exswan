@@ -496,7 +496,7 @@ defmodule ExSwan.Registration do
          extension_data_included
        )
        when byte_size(rest) >= credential_id_length do
-    <<credential_id::binary-size(credential_id_length), remaining::binary>> = rest
+    <<credential_id::binary-size(^credential_id_length), remaining::binary>> = rest
 
     # Parse credential public key (CBOR-encoded COSE key)
     credential_public_key_result =

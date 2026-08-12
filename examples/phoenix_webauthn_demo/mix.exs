@@ -81,9 +81,19 @@ defmodule PhoenixWebauthnDemo.MixProject do
       "ecto.setup": ["ecto.create", "ecto.migrate", "run priv/repo/seeds.exs"],
       "ecto.reset": ["ecto.drop", "ecto.setup"],
       test: ["ecto.create --quiet", "ecto.migrate --quiet", "test"],
-      "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
-      "assets.build": ["tailwind phoenix_webauthn_demo", "esbuild phoenix_webauthn_demo"],
+      "assets.install": ["cmd --cd assets bun install --frozen-lockfile"],
+      "assets.setup": [
+        "tailwind.install --if-missing",
+        "esbuild.install --if-missing",
+        "assets.install"
+      ],
+      "assets.build": [
+        "assets.install",
+        "tailwind phoenix_webauthn_demo",
+        "esbuild phoenix_webauthn_demo"
+      ],
       "assets.deploy": [
+        "assets.install",
         "tailwind phoenix_webauthn_demo --minify",
         "esbuild phoenix_webauthn_demo --minify",
         "phx.digest"
