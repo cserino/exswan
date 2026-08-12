@@ -57,7 +57,8 @@ jobs:
         env:
           EXPECTED_VERSION: ${{ needs.select-package.outputs.version }}
         run: |
-          actual_version="$(mix eval 'IO.write(Mix.Project.config()[:version])')"
+          # mix eval checks deps by default; this job has not fetched them yet.
+          actual_version="$(mix eval --no-deps-check --no-compile 'IO.write(Mix.Project.config()[:version])')"
           test "$actual_version" = "$EXPECTED_VERSION" || {
             echo "Tag version $EXPECTED_VERSION does not match mix.exs version $actual_version" >&2
             exit 1
