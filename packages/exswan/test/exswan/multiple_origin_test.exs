@@ -18,7 +18,6 @@ defmodule ExSwan.MultipleOriginTest do
 
     # Mock credential for authentication tests
     credential = %Credential{
-      type: :public_key,
       id: "test-credential-id",
       public_key: %{
         # kty: EC2
@@ -32,7 +31,6 @@ defmodule ExSwan.MultipleOriginTest do
         # y
         -3 => :crypto.strong_rand_bytes(32)
       },
-      rp_id: "example.com",
       sign_count: 0
     }
 

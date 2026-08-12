@@ -1,61 +1,48 @@
 defmodule PhoenixWebauthnDemoWeb.AuthenticationController do
   use PhoenixWebauthnDemoWeb, :controller
 
-  alias PhoenixWebauthnDemo.Accounts
-  alias PhoenixWebauthnDemo.WebAuthn
+  alias ExSwan.Plug.Response
+  alias PhoenixWebauthnDemo.{Accounts, Repo, WebAuthn}
+  alias PhoenixWebauthnDemo.Accounts.User
 
-  def new(conn, _params) do
-    render(conn, :new)
-  end
+  @ceremony_store {ExSwan.Plug.CeremonyStore.Memory, PhoenixWebauthnDemo.CeremonyStore}
+
+  def new(conn, _params), do: render(conn, :new)
 
   def begin_authentication(conn, params) do
-    # Support both usernameless and user-specific authentication
-    user =
-      case params["email"] do
-        email when is_binary(email) and email != "" ->
-          Accounts.get_user_by_email(email)
+    user = user_from_params(params)
 
-        _ ->
-          nil
-      end
+    opts = [
+      rp_id: WebAuthn.rp_id(),
+      origin: WebAuthn.origin(),
+      allow_credentials: WebAuthn.allowed_credentials(user),
+      ceremony_store: @ceremony_store
+    ]
 
-    case WebAuthn.generate_authentication_options(user) do
-      {:ok, options} ->
-        # Store challenge in session for verification
-        conn
-        |> put_session(:webauthn_challenge, options.challenge)
-        |> json(options)
+    opts = if user, do: Keyword.put(opts, :expected_user_handle, user.user_handle), else: opts
 
-      {:error, reason} ->
-        conn
-        |> put_status(:internal_server_error)
-        |> json(%{error: to_string(reason)})
+    case ExSwan.Plug.begin_authentication(conn, opts) do
+      {:ok, conn, options_json} -> json(conn, options_json)
+      {:error, reason} -> Response.send_error(conn, reason)
     end
   end
 
-  def complete_authentication(conn, params) do
-    challenge = get_session(conn, :webauthn_challenge)
+  def complete_authentication(conn, browser_response) do
+    case ExSwan.Plug.finish_authentication(conn,
+           response: browser_response,
+           store: WebAuthn,
+           ceremony_store: @ceremony_store
+         ) do
+      {:ok, conn, _authentication, credential} ->
+        user = Repo.get!(User, credential.user_id)
 
-    if challenge do
-      # Reconstruct options for verification
-      options = %{challenge: challenge}
+        conn
+        |> clear_session()
+        |> put_session(:current_user_id, user.id)
+        |> json(%{success: true, redirect: ~p"/dashboard"})
 
-      case WebAuthn.verify_authentication(params, options) do
-        {:ok, user} ->
-          conn
-          |> clear_session()
-          |> put_session(:current_user_id, user.id)
-          |> json(%{success: true, redirect: ~p"/dashboard"})
-
-        {:error, reason} ->
-          conn
-          |> put_status(:bad_request)
-          |> json(%{error: to_string(reason)})
-      end
-    else
-      conn
-      |> put_status(:bad_request)
-      |> json(%{error: "Invalid session"})
+      {:error, reason} ->
+        Response.send_error(conn, reason)
     end
   end
 
@@ -64,4 +51,9 @@ defmodule PhoenixWebauthnDemoWeb.AuthenticationController do
     |> clear_session()
     |> redirect(to: ~p"/")
   end
+
+  defp user_from_params(%{"email" => email}) when is_binary(email) and email != "",
+    do: Accounts.get_user_by_email(email)
+
+  defp user_from_params(_params), do: nil
 end

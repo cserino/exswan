@@ -8,7 +8,7 @@ export EXSWAN_MONOREPO ?= true
 
 PACKAGES := $(wildcard packages/*)
 
-.PHONY: deps compile test format format-check credo docs clean hex-build compatibility-fixtures compatibility-check help
+.PHONY: deps compile test format format-check credo docs clean hex-build security-audit compatibility-fixtures compatibility-check browser-chromium conformance-harness help
 
 help:
 	@echo "ExSwan monorepo targets:"
@@ -20,8 +20,11 @@ help:
 	@echo "  make credo         - mix credo --strict for every package"
 	@echo "  make docs          - mix docs for every package"
 	@echo "  make hex-build     - mix hex.build for every package"
+	@echo "  make security-audit - check package, demo, and harness locks for Hex advisories"
 	@echo "  make compatibility-fixtures - regenerate pinned SimpleWebAuthn fixtures"
 	@echo "  make compatibility-check    - verify generated fixtures and browser types"
+	@echo "  make browser-chromium       - run a real Chromium virtual-authenticator flow"
+	@echo "  make conformance-harness    - run the private FIDO server HTTP harness"
 	@echo "  make clean         - remove _build and deps in every package"
 	@echo ""
 	@echo "EXSWAN_MONOREPO=$(EXSWAN_MONOREPO) (set to true for path deps)"
@@ -76,6 +79,12 @@ hex-build:
 	  (cd $$p && EXSWAN_MONOREPO=false mix hex.build) || exit 1; \
 	done
 
+security-audit:
+	@for p in $(PACKAGES) examples/phoenix_webauthn_demo test/conformance; do \
+	  echo "==> hex.audit $$p"; \
+	  (cd $$p && EXSWAN_MONOREPO=true mix hex.audit) || exit 1; \
+	done
+
 compatibility-fixtures:
 	cd test/compatibility && bun install --frozen-lockfile && bun run generate
 
@@ -83,6 +92,15 @@ compatibility-check:
 	cd test/compatibility && bun install --frozen-lockfile && bun run check
 	@git diff --exit-code -- test/compatibility/fixtures
 	cd packages/exswan && mix test test/exswan/compatibility_options_test.exs test/exswan/compatibility_ceremony_test.exs
+
+browser-chromium:
+	cd test/browser && bun install --frozen-lockfile && bun run tsc --noEmit
+	cd examples/phoenix_webauthn_demo && EXSWAN_MONOREPO=true MIX_ENV=test mix ecto.create --quiet && EXSWAN_MONOREPO=true MIX_ENV=test mix ecto.migrate --quiet
+	cd examples/phoenix_webauthn_demo && EXSWAN_MONOREPO=true mix assets.build
+	cd test/browser && bun run test:chromium
+
+conformance-harness:
+	cd test/conformance && EXSWAN_MONOREPO=true mix run --no-halt
 
 clean:
 	@for p in $(PACKAGES); do \

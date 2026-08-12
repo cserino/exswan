@@ -1,212 +1,132 @@
 defmodule PhoenixWebauthnDemo.WebAuthn do
   @moduledoc """
-  The WebAuthn context.
+  Application-owned passkey persistence and identity policy for the demo.
+
+  Protocol verification and ceremony lifecycle are owned by ExSwan and ExSwan.Plug.
   """
+
+  @behaviour ExSwan.Plug.Store
 
   import Ecto.Query, warn: false
-  alias PhoenixWebauthnDemo.Repo
-  alias PhoenixWebauthnDemo.Accounts.User
-  alias PhoenixWebauthnDemo.WebAuthn.Credential
 
-  @doc """
-  Returns the list of credentials for a user.
-  """
+  alias ExSwan.{AuthenticationResult, RegistrationResult}
+  alias PhoenixWebauthnDemo.Accounts.User
+  alias PhoenixWebauthnDemo.Repo
+  alias PhoenixWebauthnDemo.WebAuthn.Credential, as: StoredCredential
+
+  @doc "Returns credentials belonging to a user."
   def list_user_credentials(%User{id: user_id}) do
-    Credential
-    |> where([c], c.user_id == ^user_id)
-    |> order_by([c], desc: c.last_used_at)
+    StoredCredential
+    |> where([credential], credential.user_id == ^user_id)
+    |> order_by([credential], desc: credential.last_used_at)
     |> Repo.all()
   end
 
-  @doc """
-  Gets a single credential by credential_id.
-  """
+  @doc "Returns a credential by its unpadded base64url identifier."
   def get_credential_by_id(credential_id) when is_binary(credential_id) do
-    Repo.get_by(Credential, credential_id: credential_id)
+    Repo.get_by(StoredCredential, credential_id: credential_id)
   end
 
-  @doc """
-  Creates a credential.
-  """
-  def create_credential(attrs \\ %{}) do
-    %Credential{}
-    |> Credential.changeset(attrs)
-    |> Repo.insert()
-  end
+  @doc "Deletes an application credential."
+  def delete_credential(%StoredCredential{} = credential), do: Repo.delete(credential)
 
-  @doc """
-  Updates a credential.
-  """
-  def update_credential(%Credential{} = credential, attrs) do
-    credential
-    |> Credential.changeset(attrs)
-    |> Repo.update()
-  end
-
-  @doc """
-  Deletes a credential.
-  """
-  def delete_credential(%Credential{} = credential) do
-    Repo.delete(credential)
-  end
-
-  @doc """
-  Updates credential sign count and last used time.
-  """
-  def update_credential_usage(%Credential{} = credential, sign_count) do
-    update_credential(credential, %{
-      sign_count: sign_count,
-      last_used_at: DateTime.utc_now()
-    })
-  end
-
-  @doc """
-  Generates WebAuthn registration options for a user.
-  """
-  def generate_registration_options(%User{} = user) do
-    rp = %ExSwan.Credential.RelyingParty{
-      id: get_rp_id(),
-      name: "Phoenix WebAuthn Demo"
-    }
-
-    webauthn_user = %ExSwan.Credential.User{
-      id: user.user_handle,
-      name: user.email,
-      display_name: user.display_name || user.email
-    }
-
-    # Get existing credentials to exclude
-    existing_credentials = list_user_credentials(user)
-
-    excluded_credentials =
-      for cred <- existing_credentials do
-        %ExSwan.Credential.Descriptor{
-          type: :public_key,
-          id: cred.credential_id,
-          transports: cred.transports
-        }
-      end
-
-    case ExSwan.Registration.generate_creation_options(
-           rp,
-           webauthn_user,
-           exclude_credentials: excluded_credentials
-         ) do
-      {:ok, options} -> {:ok, options}
-      {:error, reason} -> {:error, reason}
-    end
-  end
-
-  @doc """
-  Verifies a WebAuthn registration response.
-  """
-  def verify_registration(response, options, %User{} = user) do
-    origin = get_origin()
-
-    case ExSwan.Registration.verify_creation(response, options, origin) do
-      {:ok, credential} ->
-        # Store credential in database
-        create_credential(%{
-          user_id: user.id,
-          credential_id: credential.id,
-          public_key: :erlang.term_to_binary(credential.public_key),
-          sign_count: credential.sign_count,
-          backup_eligible: Map.get(credential, :backup_eligible),
-          backup_state: Map.get(credential, :backup_state),
-          transports: Map.get(credential, :transports, [])
-        })
-
-      {:error, reason} ->
-        {:error, reason}
-    end
-  end
-
-  @doc """
-  Generates WebAuthn authentication options.
-  """
-  def generate_authentication_options(user \\ nil) do
-    allowed_credentials =
-      case user do
-        %User{} = user ->
-          user
-          |> list_user_credentials()
-          |> Enum.map(fn cred ->
-            %ExSwan.Credential.Descriptor{
-              type: :public_key,
-              id: cred.credential_id,
-              transports: cred.transports
-            }
-          end)
-
-        nil ->
-          []
-      end
-
-    case ExSwan.Authentication.generate_request_options(get_rp_id(),
-           allow_credentials: allowed_credentials
-         ) do
-      {:ok, options} -> {:ok, options}
-      {:error, reason} -> {:error, reason}
-    end
-  end
-
-  @doc """
-  Verifies a WebAuthn authentication response.
-  """
-  def verify_authentication(%{"id" => credential_id, "response" => response}, options) do
+  @impl ExSwan.Plug.Store
+  def get_credential(credential_id, _context) do
     case get_credential_by_id(credential_id) do
-      nil ->
-        {:error, :credential_not_found}
-
-      credential ->
-        stored_credential = %ExSwan.Credential{
-          type: :public_key,
-          id: credential.credential_id,
-          private_key: nil,
-          public_key: :erlang.binary_to_term(credential.public_key),
-          rp_id: get_rp_id(),
-          user_handle: <<>>,
-          user_display_name: "",
-          cred_protect: nil,
-          creation_time: credential.inserted_at || DateTime.utc_now(),
-          sign_count: credential.sign_count
-        }
-
-        # Convert options map to proper RequestOptions struct
-        request_options = %ExSwan.Assertion.RequestOptions{
-          challenge: options.challenge,
-          timeout: 60_000,
-          rp_id: get_rp_id(),
-          allow_credentials: nil,
-          user_verification: "preferred",
-          extensions: nil
-        }
-
-        origin = get_origin()
-
-        case ExSwan.Authentication.verify_assertion(
-               response,
-               request_options,
-               stored_credential,
-               origin
-             ) do
-          {:ok, _result} ->
-            # For now, we won't update the sign count since we need to parse authenticator data
-            # TODO: Extract and update sign count from result.authenticator_data
-            user = Repo.get!(User, credential.user_id)
-            {:ok, user}
-
-          {:error, reason} ->
-            {:error, reason}
-        end
+      nil -> {:error, :not_found}
+      credential -> {:ok, to_exswan_credential(credential)}
     end
   end
 
-  defp get_rp_id do
+  @impl ExSwan.Plug.Store
+  def create_credential(%User{} = user, %RegistrationResult{} = registration, _context) do
+    credential = registration.credential
+
+    %StoredCredential{}
+    |> StoredCredential.changeset(%{
+      user_id: user.id,
+      credential_id: credential.id,
+      public_key: credential.public_key,
+      sign_count: credential.sign_count,
+      backup_eligible: registration.credential_device_type == :multi_device,
+      backup_state: registration.credential_backed_up,
+      transports: credential.transports || []
+    })
+    |> Repo.insert()
+    |> normalize_insert_error()
+  end
+
+  @impl ExSwan.Plug.Store
+  def update_credential(
+        %ExSwan.Credential{} = credential,
+        %AuthenticationResult{} = authentication,
+        _context
+      ) do
+    now = DateTime.utc_now() |> DateTime.truncate(:second)
+
+    {updated, _rows} =
+      StoredCredential
+      |> where(
+        [stored],
+        stored.credential_id == ^credential.id and stored.sign_count == ^credential.sign_count
+      )
+      |> Repo.update_all(
+        set: [
+          sign_count: authentication.new_sign_count,
+          backup_eligible: authentication.credential_device_type == :multi_device,
+          backup_state: authentication.credential_backed_up,
+          last_used_at: now
+        ]
+      )
+
+    case updated do
+      1 -> {:ok, get_credential_by_id(credential.id)}
+      0 -> {:error, :stale_credential}
+    end
+  end
+
+  @doc "Returns stored credentials in the core public value format."
+  def allowed_credentials(nil), do: []
+
+  def allowed_credentials(%User{} = user) do
+    Enum.map(list_user_credentials(user), &to_exswan_credential/1)
+  end
+
+  @doc "Returns the configured relying-party ID."
+  def rp_id do
     Application.get_env(:phoenix_webauthn_demo, :webauthn)[:rp_id] || "localhost"
   end
 
-  defp get_origin do
-    "http://localhost:4000"
+  @doc "Returns the configured browser origin."
+  def origin do
+    Application.get_env(:phoenix_webauthn_demo, :webauthn)[:origin] ||
+      "http://localhost:4000"
+  end
+
+  defp to_exswan_credential(%StoredCredential{} = credential) do
+    user = Repo.get!(User, credential.user_id)
+
+    %ExSwan.Credential{
+      id: credential.credential_id,
+      public_key: credential.public_key,
+      user_handle: user.user_handle,
+      sign_count: credential.sign_count,
+      transports: credential.transports || [],
+      credential_device_type:
+        if(credential.backup_eligible, do: :multi_device, else: :single_device),
+      credential_backed_up: credential.backup_state || false
+    }
+  end
+
+  defp normalize_insert_error({:ok, credential}), do: {:ok, credential}
+
+  defp normalize_insert_error({:error, %Ecto.Changeset{} = changeset}) do
+    case changeset.errors[:credential_id] do
+      {_message, options} when is_list(options) ->
+        if options[:constraint] == :unique, do: {:error, :duplicate}, else: {:error, changeset}
+
+      _other ->
+        {:error, changeset}
+    end
   end
 end

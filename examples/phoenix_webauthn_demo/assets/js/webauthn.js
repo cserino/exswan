@@ -27,7 +27,7 @@ const WebAuthnClient = {
       const options = await response.json();
 
       // Start WebAuthn registration
-      const credential = await startRegistration(options);
+      const credential = await startRegistration({optionsJSON: options});
 
       // Send credential to server for verification
       const verifyResponse = await fetch('/api/webauthn/register/complete', {
@@ -73,7 +73,7 @@ const WebAuthnClient = {
       const options = await response.json();
 
       // Start WebAuthn authentication
-      const credential = await startAuthentication(options);
+      const credential = await startAuthentication({optionsJSON: options});
 
       // Send credential to server for verification
       const verifyResponse = await fetch('/api/webauthn/authenticate/complete', {

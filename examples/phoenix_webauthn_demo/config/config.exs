@@ -35,10 +35,7 @@ config :phoenix_webauthn_demo, PhoenixWebauthnDemo.Mailer, adapter: Swoosh.Adapt
 config :phoenix_webauthn_demo, :webauthn,
   rp_id: System.get_env("WEBAUTHN_RP_ID", "localhost"),
   rp_name: "Phoenix WebAuthn Demo",
-  origins: [
-    "http://localhost:4000",
-    "https://demo.example.com"
-  ]
+  origin: System.get_env("WEBAUTHN_ORIGIN", "http://localhost:4000")
 
 # Configure esbuild (the version is required)
 config :esbuild,

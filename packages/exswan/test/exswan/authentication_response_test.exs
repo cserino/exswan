@@ -12,10 +12,8 @@ defmodule ExSwan.AuthenticationResponseTest do
     <<4, x::binary-size(32), y::binary-size(32)>> = public_key
 
     credential = %Credential{
-      type: :public_key,
       id: Base.url_encode64(@credential_id, padding: false),
       public_key: %{1 => 2, 3 => -7, -1 => 1, -2 => x, -3 => y},
-      rp_id: "example.com",
       user_handle: @user_handle,
       sign_count: 41,
       credential_device_type: :multi_device,
@@ -88,6 +86,16 @@ defmodule ExSwan.AuthenticationResponseTest do
 
     test "accepts a null user handle for a non-discoverable assertion", context do
       response = put_in(browser_response(context.private_key), ["response", "userHandle"], nil)
+      assert {:ok, %AuthenticationResult{user_handle: nil}} = verify(response, context.credential)
+    end
+
+    test "accepts an omitted user handle for a non-discoverable assertion", context do
+      response =
+        update_in(
+          browser_response(context.private_key)["response"],
+          &Map.delete(&1, "userHandle")
+        )
+
       assert {:ok, %AuthenticationResult{user_handle: nil}} = verify(response, context.credential)
     end
 

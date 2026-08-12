@@ -1,9 +1,10 @@
 defmodule ExSwan.Credential do
   @moduledoc """
-  Defines WebAuthn credential structures and operations.
+  Public stored-credential value returned by registration and accepted by
+  authentication.
 
-  This module contains the core data structures used in WebAuthn operations,
-  including public key credentials, authenticator data, and credential sources.
+  `id` is an unpadded base64url string. `public_key` is the binary CBOR-encoded COSE
+  key and should be persisted without transformation.
   """
 
   @type credential_id :: String.t()
@@ -12,17 +13,10 @@ defmodule ExSwan.Credential do
   @doc """
   Represents a WebAuthn credential source as stored by the authenticator.
   """
-  @derive Jason.Encoder
   defstruct [
-    :type,
     :id,
-    :private_key,
     :public_key,
-    :rp_id,
     :user_handle,
-    :user_display_name,
-    :cred_protect,
-    :creation_time,
     :sign_count,
     :transports,
     :credential_device_type,
@@ -30,15 +24,9 @@ defmodule ExSwan.Credential do
   ]
 
   @type t :: %__MODULE__{
-          type: :public_key,
           id: credential_id(),
-          private_key: binary() | nil,
-          public_key: map(),
-          rp_id: String.t(),
-          user_handle: user_handle(),
-          user_display_name: String.t(),
-          cred_protect: atom() | nil,
-          creation_time: DateTime.t(),
+          public_key: binary(),
+          user_handle: user_handle() | nil,
           sign_count: non_neg_integer(),
           transports: [String.t()] | nil,
           credential_device_type: :single_device | :multi_device | nil,

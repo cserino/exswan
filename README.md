@@ -44,7 +44,7 @@ Add the packages you need to your app's `mix.exs`:
 def deps do
   [
     {:exswan, "~> 0.1.0"},
-    # optional Plug helpers (stub / upcoming)
+    # optional Plug ceremony lifecycle helpers
     {:exswan_plug, "~> 0.1.0"}
   ]
 end
@@ -58,22 +58,21 @@ See each package README for full usage:
 ## Quick Start (core)
 
 ```elixir
-rp = %ExSwan.Credential.RelyingParty{
-  id: "example.com",
-  name: "Example Corp"
-}
+{:ok, %{options: options_json, ceremony: ceremony}} =
+  ExSwan.generate_registration_options(
+    rp_name: "Example Corp",
+    rp_id: "example.com",
+    user_name: "user@example.com",
+    user_id: user_handle
+  )
 
-user = %ExSwan.Credential.User{
-  id: :crypto.strong_rand_bytes(32),
-  name: "user@example.com",
-  display_name: "John Doe"
-}
-
-{:ok, options} = ExSwan.Registration.generate_creation_options(rp, user)
-{:ok, credential} = ExSwan.Registration.verify_creation(response, options, origin)
-
-{:ok, options} = ExSwan.Authentication.generate_request_options("example.com")
-{:ok, result} = ExSwan.Authentication.verify_assertion(response, options, stored_credential)
+{:ok, registration} =
+  ExSwan.verify_registration_response(
+    response: browser_response,
+    expected_challenge: ceremony.challenge,
+    expected_origin: "https://example.com",
+    expected_rp_id: ceremony.rp_id
+  )
 ```
 
 ## Development (monorepo)
@@ -144,10 +143,11 @@ mix deps.get
 mix phx.server
 ```
 
-The demo depends on the core package via path:
+The demo depends on the Plug package via path. The Plug package then uses the local
+core package when `EXSWAN_MONOREPO=true`:
 
 ```elixir
-{:exswan, path: "../../packages/exswan"}
+{:exswan_plug, path: "../../packages/exswan_plug"}
 ```
 
 ## Contributing
@@ -156,6 +156,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). Please open PRs against this monorepo â€
 
 ## Documentation
 
+- [Remaining browser and FIDO validation](docs/remaining-validation.md)
 - [Core package docs](https://hexdocs.pm/exswan)
 - [Development plan](docs/plan.md)
 - [Agent guidelines](AGENTS.md)

@@ -26,6 +26,7 @@ defmodule ExSwan.CompatibilityCeremonyTest do
              )
 
     assert registration.credential.id == expected["credentialID"]
+    assert is_binary(registration.credential.public_key)
     assert registration.credential.sign_count == expected["registrationSignCount"]
     assert registration.attestation_format == :none
     assert registration.credential_device_type == :single_device

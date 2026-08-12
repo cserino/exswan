@@ -35,6 +35,7 @@ defmodule ExSwan.Authentication do
     Attestation,
     AuthenticationResult,
     Base64URL,
+    CBORUtils,
     Common,
     Credential,
     Crypto,
@@ -44,7 +45,7 @@ defmodule ExSwan.Authentication do
   @type generate_request_options_opts :: [
           {:challenge, binary()}
           | {:timeout, pos_integer()}
-          | {:allow_credentials, [Credential.Descriptor.t()]}
+          | {:allow_credentials, [Credential.Descriptor.t() | Credential.t()]}
           | {:user_verification, String.t()}
           | {:extensions, map()}
         ]
@@ -64,7 +65,7 @@ defmodule ExSwan.Authentication do
 
   - `:challenge` - Custom challenge (defaults to secure random 32 bytes)
   - `:timeout` - Request timeout in milliseconds (default: 60_000)
-  - `:allow_credentials` - List of allowed credential descriptors
+  - `:allow_credentials` - List of stored credentials or credential descriptors
   - `:user_verification` - User verification requirement ("required", "preferred", "discouraged")
   - `:extensions` - WebAuthn extensions
 
@@ -83,22 +84,24 @@ defmodule ExSwan.Authentication do
   def generate_request_options(rp_id, opts \\ []) when is_binary(rp_id) do
     challenge = Keyword.get(opts, :challenge, :crypto.strong_rand_bytes(32))
     timeout = Keyword.get(opts, :timeout, 60_000)
-    allow_credentials = Keyword.get(opts, :allow_credentials)
     user_verification = Keyword.get(opts, :user_verification, "preferred")
     extensions = Keyword.get(opts, :extensions)
 
-    request_options = %Assertion.RequestOptions{
-      challenge: challenge,
-      timeout: timeout,
-      rp_id: rp_id,
-      allow_credentials: allow_credentials,
-      user_verification: user_verification,
-      extensions: extensions
-    }
+    with {:ok, allow_credentials} <-
+           normalize_allow_credentials(Keyword.get(opts, :allow_credentials)) do
+      request_options = %Assertion.RequestOptions{
+        challenge: challenge,
+        timeout: timeout,
+        rp_id: rp_id,
+        allow_credentials: allow_credentials,
+        user_verification: user_verification,
+        extensions: extensions
+      }
 
-    case Validator.validate_request_options(request_options) do
-      :ok -> {:ok, request_options}
-      error -> error
+      case Validator.validate_request_options(request_options) do
+        :ok -> {:ok, request_options}
+        error -> error
+      end
     end
   end
 
@@ -181,7 +184,7 @@ defmodule ExSwan.Authentication do
        }}
     end
   rescue
-    _error in [ArgumentError, FunctionClauseError, MatchError] ->
+    _error in ArgumentError ->
       {:error, :invalid_authentication_response}
   end
 
@@ -344,6 +347,11 @@ defmodule ExSwan.Authentication do
     {:ok, public_key}
   end
 
+  defp get_credential_public_key(%Credential{public_key: public_key})
+       when is_binary(public_key) do
+    CBORUtils.decode_credential_public_key(public_key)
+  end
+
   defp get_credential_public_key(_) do
     {:error, :public_key_not_available}
   end
@@ -377,6 +385,34 @@ defmodule ExSwan.Authentication do
   defp format_allow_credentials(credentials) when is_list(credentials) do
     Enum.map(credentials, &Credential.Descriptor.to_json/1)
   end
+
+  defp normalize_allow_credentials(nil), do: {:ok, nil}
+
+  defp normalize_allow_credentials(credentials) when is_list(credentials) do
+    credentials
+    |> Enum.reduce_while({:ok, []}, fn
+      %Credential.Descriptor{} = descriptor, {:ok, normalized} ->
+        {:cont, {:ok, [descriptor | normalized]}}
+
+      %Credential{id: id, transports: transports}, {:ok, normalized} when is_binary(id) ->
+        descriptor = %Credential.Descriptor{
+          type: :public_key,
+          id: id,
+          transports: transports || []
+        }
+
+        {:cont, {:ok, [descriptor | normalized]}}
+
+      _credential, _acc ->
+        {:halt, {:error, :invalid_allow_credentials}}
+    end)
+    |> case do
+      {:ok, normalized} -> {:ok, Enum.reverse(normalized)}
+      error -> error
+    end
+  end
+
+  defp normalize_allow_credentials(_credentials), do: {:error, :invalid_allow_credentials}
 
   defp normalize_browser_response(response) do
     with {:ok, id} <- fetch_string(response, "id"),
@@ -426,7 +462,7 @@ defmodule ExSwan.Authentication do
     case Map.fetch(response, "userHandle") do
       {:ok, nil} -> {:ok, nil}
       {:ok, value} -> decode_field(value, :invalid_user_handle)
-      :error -> {:error, {:missing_field, "userHandle"}}
+      :error -> {:ok, nil}
     end
   end
 
@@ -467,8 +503,12 @@ defmodule ExSwan.Authentication do
     end
   end
 
-  defp verify_credential_algorithm(%Credential{public_key: %{3 => -7}}), do: :ok
-  defp verify_credential_algorithm(%Credential{}), do: {:error, :unsupported_credential_algorithm}
+  defp verify_credential_algorithm(%Credential{} = credential) do
+    case get_credential_public_key(credential) do
+      {:ok, %{3 => -7}} -> :ok
+      _other -> {:error, :unsupported_credential_algorithm}
+    end
+  end
 
   defp credential_device_type(%Attestation.Flags{backup_eligible: true}), do: :multi_device
   defp credential_device_type(%Attestation.Flags{backup_eligible: false}), do: :single_device

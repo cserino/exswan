@@ -6,9 +6,9 @@ ExSwan is an Elixir library for implementing WebAuthn (Web Authentication) speci
 
 ## Project Goals
 
-- Provide a complete WebAuthn implementation for Elixir applications
+- Provide a tested WebAuthn server implementation for Elixir applications
 - Support both authentication and registration ceremonies
-- Ensure security best practices and specification compliance
+- Track protocol requirements and conformance evidence explicitly
 - Offer simple, developer-friendly APIs
 - Support multiple authenticator types (platform, cross-platform)
 
@@ -16,7 +16,7 @@ ExSwan is an Elixir library for implementing WebAuthn (Web Authentication) speci
 
 - Monorepo of standalone Hex packages under `packages/` (not an OTP umbrella)
 - Core package `:exswan` (`ExSwan.*`) with registration/authentication ceremonies
-- Stub package `:exswan_plug` (`ExSwan.Plug`) for future Plug helpers
+- Plug package `:exswan_plug` (`ExSwan.Plug`) for ceremony lifecycle helpers
 - Path vs Hex deps controlled by `EXSWAN_MONOREPO`
 - Root `Makefile` + GitHub Actions matrix CI
 
@@ -52,7 +52,7 @@ ExSwan is an Elixir library for implementing WebAuthn (Web Authentication) speci
 
 - Parse attestation responses
 - Validate attestation statements
-- Support attestation formats that can be validated securely (`none`, `packed`, and `fido-u2f`)
+- Support `none` attestation; add other formats only with complete trust-rule coverage
 - Store and manage public keys
 
 ## Phase 3: Authentication Flow (Weeks 5-6)
@@ -80,10 +80,10 @@ ExSwan is an Elixir library for implementing WebAuthn (Web Authentication) speci
 - Ensure secure random challenge generation
 - Validate certificate chains
 
-### 4.2 Specification Compliance
+### 4.2 Protocol and Conformance Evidence
 
-- Full WebAuthn Level 2 compliance
-- Support for latest CTAP specifications
+- WebAuthn Level 2 compatibility baseline
+- Generated SimpleWebAuthn fixtures and a private FIDO conformance harness
 - Comprehensive error handling
 - Security audit and testing
 
@@ -116,16 +116,16 @@ exswan/                              # git monorepo
 │   │   ├── ExSwan.Attestation*      # Attestation validation
 │   │   └── ExSwan.Crypto / CBORUtils
 │   └── exswan_plug/                 # :exswan_plug (extension Hex package)
-│       └── ExSwan.Plug              # Plug helpers (stub)
+│       └── ExSwan.Plug              # Plug ceremony lifecycle
 ├── examples/
 └── Makefile                         # monorepo orchestration
 ```
 
 ## Success Metrics
 
-- 100% WebAuthn specification compliance
-- > 95% test coverage
-- Production-ready security practices
+- Passing compatibility, rejection, property, and cryptographic tests
+- Recorded browser and FIDO conformance results before a release claim
+- Explicit deployment limits and storage requirements
 - Clear documentation and examples
 - Active community adoption
 

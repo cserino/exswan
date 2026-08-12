@@ -123,4 +123,26 @@ defmodule ExSwan.RegistrationOptionsTest do
       assert algorithms == [-7]
     end
   end
+
+  describe "credential exclusion" do
+    test "accepts public stored credentials", %{rp: rp, user: user} do
+      credential = %Credential{id: "CQgHBg", transports: ["internal"]}
+
+      assert {:ok, options} =
+               Registration.generate_creation_options(rp, user, exclude_credentials: [credential])
+
+      assert options.exclude_credentials == [
+               %Credential.Descriptor{
+                 type: :public_key,
+                 id: "CQgHBg",
+                 transports: ["internal"]
+               }
+             ]
+    end
+
+    test "rejects malformed exclusions without raising", %{rp: rp, user: user} do
+      assert {:error, :invalid_exclude_credentials} =
+               Registration.generate_creation_options(rp, user, exclude_credentials: [%{}])
+    end
+  end
 end

@@ -11,6 +11,59 @@ env:
   EXSWAN_MONOREPO: "true"
 
 jobs:
+  compatibility:
+    name: SimpleWebAuthn compatibility fixtures
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: test/compatibility/.bun-version
+
+      - name: Install pinned fixture dependencies
+        working-directory: test/compatibility
+        run: bun install --frozen-lockfile
+
+      - name: Type-check and regenerate fixtures
+        working-directory: test/compatibility
+        run: bun run check
+
+      - name: Reject committed fixture drift
+        run: git diff --exit-code -- test/compatibility/fixtures
+
+  browser-chromium:
+    name: Chromium registration and authentication
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Elixir
+        uses: erlef/setup-beam@v1
+        with:
+          otp-version: "27.3"
+          elixir-version: "1.18.4"
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.3.14"
+
+      - name: Set up Chrome
+        id: chrome
+        uses: browser-actions/setup-chrome@v2
+
+      - name: Install package dependencies
+        run: make deps
+
+      - name: Install demo dependencies
+        working-directory: examples/phoenix_webauthn_demo
+        run: mix deps.get
+
+      - name: Run browser ceremony
+        env:
+          CHROMIUM_PATH: ${{ steps.chrome.outputs.chrome-path }}
+        run: make browser-chromium
+
   workspace:
     name: "workspace / ${{ matrix.package }} / OTP ${{ matrix.otp }} / Elixir ${{ matrix.elixir }}"
     runs-on: ubuntu-latest
@@ -57,6 +110,49 @@ jobs:
 
       - name: Run tests
         run: mix test
+
+      - name: Audit dependencies
+        run: mix hex.audit
+
+  integration:
+    name: "integration / ${{ matrix.project }}"
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - project: phoenix-demo
+            directory: examples/phoenix_webauthn_demo
+          - project: fido-http-harness
+            directory: test/conformance
+
+    defaults:
+      run:
+        working-directory: ${{ matrix.directory }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Elixir
+        uses: erlef/setup-beam@v1
+        with:
+          otp-version: "27.3"
+          elixir-version: "1.18.4"
+
+      - name: Install dependencies
+        run: mix deps.get
+
+      - name: Compile (warnings as errors)
+        run: mix compile --warnings-as-errors
+
+      - name: Check formatting
+        run: mix format --check-formatted
+
+      - name: Run tests
+        run: mix test
+
+      - name: Audit dependencies
+        run: mix hex.audit
 
   # Integration packages against the published Hex graph (not path deps).
   # Catches the monorepo bug where a package only works because it sees

@@ -24,7 +24,6 @@ defmodule ExSwan.AuthenticationTest do
       challenge = :crypto.strong_rand_bytes(16)
 
       credential_desc = %Credential.Descriptor{
-        type: :public_key,
         id: :crypto.strong_rand_bytes(32),
         transports: ["usb", "nfc"]
       }
@@ -44,6 +43,26 @@ defmodule ExSwan.AuthenticationTest do
       assert options.allow_credentials == [credential_desc]
       assert options.user_verification == "required"
       assert options.extensions == %{"txAuthSimple" => "Please confirm"}
+    end
+
+    test "accepts public stored credentials at the allow-list seam" do
+      credential = %Credential{id: "CQgHBg", transports: ["usb"]}
+
+      assert {:ok, options} =
+               Authentication.generate_request_options("example.com",
+                 allow_credentials: [credential]
+               )
+
+      assert options.allow_credentials == [
+               %Credential.Descriptor{type: :public_key, id: "CQgHBg", transports: ["usb"]}
+             ]
+    end
+
+    test "rejects malformed allow-list values without raising" do
+      assert {:error, :invalid_allow_credentials} =
+               Authentication.generate_request_options("example.com",
+                 allow_credentials: [%{}]
+               )
     end
 
     test "validates request options" do
@@ -124,13 +143,9 @@ defmodule ExSwan.AuthenticationTest do
       }
 
       credential = %Credential{
-        type: :public_key,
         id: :crypto.strong_rand_bytes(32),
         public_key: public_key,
-        rp_id: "example.com",
         user_handle: :crypto.strong_rand_bytes(32),
-        user_display_name: "Test User",
-        creation_time: DateTime.utc_now(),
         sign_count: 1
       }
 

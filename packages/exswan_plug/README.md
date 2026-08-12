@@ -5,7 +5,8 @@
 
 Plug integration helpers for [ExSwan](https://hex.pm/packages/exswan), the Elixir WebAuthn (FIDO2) library.
 
-> **Status:** stub package. Public APIs beyond version metadata are not implemented yet.
+The package owns expiring one-time ceremony state, calls ExSwan verification, and
+hands persistence back to the application through explicit callbacks.
 
 This package lives in the [exswan monorepo](https://github.com/cserino/exswan). Related packages:
 
@@ -34,21 +35,69 @@ export EXSWAN_MONOREPO=true
 
 With that flag set, `exswan_plug` uses a path dependency on `../exswan` instead of the published Hex version. The root `Makefile` exports this for workspace commands.
 
-## Usage
+## Registration
 
 ```elixir
-ExSwan.Plug.version()
-#=> "0.1.0"
+{:ok, conn, options_json} =
+  ExSwan.Plug.begin_registration(conn,
+    user: current_user,
+    user_handle: current_user.webauthn_id,
+    user_name: current_user.email,
+    rp_name: "Example",
+    rp_id: "example.com",
+    origin: "https://example.com",
+    ceremony_store: {MyApp.Ceremonies, :primary},
+    context: %{tenant_id: current_user.tenant_id}
+  )
+
+# Send options_json to startRegistration({optionsJSON: options_json}).
+{:ok, conn, registration, persisted} =
+  ExSwan.Plug.finish_registration(conn,
+    response: params,
+    store: MyApp.Passkeys,
+    ceremony_store: {MyApp.Ceremonies, :primary}
+  )
 ```
 
-Plug middleware and Phoenix helpers will be added in a follow-up.
+Registration requires non-nil `:user` and `:user_handle` authorization inputs.
+
+## Authentication
+
+```elixir
+{:ok, conn, options_json} =
+  ExSwan.Plug.begin_authentication(conn,
+    rp_id: "example.com",
+    origin: "https://example.com",
+    allow_credentials: stored_credentials,
+    ceremony_store: {MyApp.Ceremonies, :primary},
+    context: %{tenant_id: tenant_id}
+  )
+
+{:ok, conn, authentication, persisted} =
+  ExSwan.Plug.finish_authentication(conn,
+    response: params,
+    store: MyApp.Passkeys,
+    ceremony_store: {MyApp.Ceremonies, :primary}
+  )
+```
+
+The Plug session contains only a random lookup token. Challenge, RP, origin, user, and
+callback context remain in server-side ceremony storage. Applications must fetch the
+Plug session before calling these functions.
+
+See
+[Ceremony store adapters](https://github.com/cserino/exswan/blob/main/docs/ceremony-store-adapters.md)
+and
+[Credential persistence](https://github.com/cserino/exswan/blob/main/docs/credential-persistence.md)
+before deploying.
 
 ## Documentation
 
 - [API Documentation](https://hexdocs.pm/exswan_plug)
-- [Monorepo README](../../README.md)
-- [Core package](../exswan/README.md)
+- [Monorepo README](https://github.com/cserino/exswan/blob/main/README.md)
+- [Core package](https://github.com/cserino/exswan/tree/main/packages/exswan)
 
 ## License
 
-ExSwan.Plug is released under the MIT License. See [LICENSE](LICENSE) for details.
+ExSwan.Plug is available under the
+[MIT License](https://github.com/cserino/exswan/blob/main/packages/exswan_plug/LICENSE).

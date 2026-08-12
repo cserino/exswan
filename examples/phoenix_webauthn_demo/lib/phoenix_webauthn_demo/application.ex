@@ -16,6 +16,11 @@ defmodule PhoenixWebauthnDemo.Application do
       {DNSCluster,
        query: Application.get_env(:phoenix_webauthn_demo, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: PhoenixWebauthnDemo.PubSub},
+      {ExSwan.Plug.Config,
+       rp_id: PhoenixWebauthnDemo.WebAuthn.rp_id(),
+       origin: PhoenixWebauthnDemo.WebAuthn.origin(),
+       name: PhoenixWebauthnDemo.WebAuthnConfig},
+      {ExSwan.Plug.CeremonyStore.Memory, name: PhoenixWebauthnDemo.CeremonyStore},
       # Start a worker by calling: PhoenixWebauthnDemo.Worker.start_link(arg)
       # {PhoenixWebauthnDemo.Worker, arg},
       # Start to serve requests, typically the last entry

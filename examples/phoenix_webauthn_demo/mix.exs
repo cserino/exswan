@@ -65,7 +65,7 @@ defmodule PhoenixWebauthnDemo.MixProject do
       {:jason, "~> 1.2"},
       {:dns_cluster, "~> 0.2.0"},
       {:bandit, "~> 1.5"},
-      {:exswan, path: "../../packages/exswan"}
+      {:exswan_plug, path: "../../packages/exswan_plug"}
     ]
   end
 

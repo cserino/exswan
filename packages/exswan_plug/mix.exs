@@ -28,7 +28,9 @@ defmodule ExSwan.Plug.MixProject do
   defp deps do
     [
       exswan_dep(),
+      {:jason, "~> 1.4"},
       {:plug, "~> 1.16"},
+      {:telemetry, "~> 1.0"},
       {:ex_doc, "~> 0.31", only: :dev, runtime: false},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false}
     ]

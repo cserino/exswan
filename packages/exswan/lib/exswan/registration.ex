@@ -83,7 +83,6 @@ defmodule ExSwan.Registration do
       ) do
     challenge = Keyword.get(opts, :challenge, :crypto.strong_rand_bytes(32))
     timeout = Keyword.get(opts, :timeout, 60_000)
-    exclude_credentials = Keyword.get(opts, :exclude_credentials)
     algorithms = Keyword.get(opts, :algorithms, @default_algorithms)
     attestation = Keyword.get(opts, :attestation, "none")
     authenticator_selection = Keyword.get(opts, :authenticator_selection)
@@ -99,22 +98,25 @@ defmodule ExSwan.Registration do
         authenticator_selection
       )
 
-    creation_options = %Attestation.CreationOptions{
-      rp: rp,
-      user: user,
-      challenge: challenge,
-      pub_key_cred_params: algorithms,
-      timeout: timeout,
-      exclude_credentials: exclude_credentials,
-      authenticator_selection: updated_authenticator_selection,
-      attestation: attestation,
-      extensions: extensions,
-      hints: hints
-    }
+    with {:ok, exclude_credentials} <-
+           normalize_exclude_credentials(Keyword.get(opts, :exclude_credentials)) do
+      creation_options = %Attestation.CreationOptions{
+        rp: rp,
+        user: user,
+        challenge: challenge,
+        pub_key_cred_params: algorithms,
+        timeout: timeout,
+        exclude_credentials: exclude_credentials,
+        authenticator_selection: updated_authenticator_selection,
+        attestation: attestation,
+        extensions: extensions,
+        hints: hints
+      }
 
-    case Validator.validate_creation_options(creation_options) do
-      :ok -> {:ok, creation_options}
-      error -> error
+      case Validator.validate_creation_options(creation_options) do
+        :ok -> {:ok, creation_options}
+        error -> error
+      end
     end
   end
 
@@ -176,13 +178,16 @@ defmodule ExSwan.Registration do
            verify_user_verification_requirement(
              verification.authenticator_data.flags,
              Keyword.get(opts, :require_user_verification, true)
-           ) do
+           ),
+         {:ok, public_key} <-
+           CBORUtils.encode_credential_public_key(verification.credential.public_key) do
       flags = verification.authenticator_data.flags
       credential_device_type = credential_device_type(flags)
 
       credential = %{
         verification.credential
-        | transports: normalized.transports,
+        | public_key: public_key,
+          transports: normalized.transports,
           credential_device_type: credential_device_type,
           credential_backed_up: flags.backup_state
       }
@@ -203,7 +208,7 @@ defmodule ExSwan.Registration do
        }}
     end
   rescue
-    _error in [ArgumentError, FunctionClauseError, MatchError] ->
+    _error in ArgumentError ->
       {:error, :invalid_registration_response}
   end
 
@@ -231,16 +236,9 @@ defmodule ExSwan.Registration do
              client_data_hash
            ) do
       credential = %Credential{
-        type: :public_key,
         id: Base.url_encode64(credential_data.credential_id, padding: false),
-        # Not stored - kept on authenticator
-        private_key: nil,
         public_key: credential_data.credential_public_key,
-        rp_id: options.rp.id,
         user_handle: options.user.id,
-        user_display_name: options.user.display_name,
-        cred_protect: nil,
-        creation_time: DateTime.utc_now(),
         sign_count: authenticator_data.sign_count
       }
 
@@ -296,6 +294,34 @@ defmodule ExSwan.Registration do
   defp format_exclude_credentials(credentials) when is_list(credentials) do
     Enum.map(credentials, &Credential.Descriptor.to_json/1)
   end
+
+  defp normalize_exclude_credentials(nil), do: {:ok, nil}
+
+  defp normalize_exclude_credentials(credentials) when is_list(credentials) do
+    credentials
+    |> Enum.reduce_while({:ok, []}, fn
+      %Credential.Descriptor{} = descriptor, {:ok, normalized} ->
+        {:cont, {:ok, [descriptor | normalized]}}
+
+      %Credential{id: id, transports: transports}, {:ok, normalized} when is_binary(id) ->
+        descriptor = %Credential.Descriptor{
+          type: :public_key,
+          id: id,
+          transports: transports || []
+        }
+
+        {:cont, {:ok, [descriptor | normalized]}}
+
+      _credential, _acc ->
+        {:halt, {:error, :invalid_exclude_credentials}}
+    end)
+    |> case do
+      {:ok, normalized} -> {:ok, Enum.reverse(normalized)}
+      error -> error
+    end
+  end
+
+  defp normalize_exclude_credentials(_credentials), do: {:error, :invalid_exclude_credentials}
 
   defp format_authenticator_selection(nil), do: nil
 
@@ -472,7 +498,6 @@ defmodule ExSwan.Registration do
        when byte_size(rest) >= credential_id_length do
     <<credential_id::binary-size(credential_id_length), remaining::binary>> = rest
 
-    # TODO: clean this up
     # Parse credential public key (CBOR-encoded COSE key)
     credential_public_key_result =
       if extension_data_included do
