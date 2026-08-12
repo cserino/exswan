@@ -1,7 +1,8 @@
 # SimpleWebAuthn Compatibility
 
-ExSwan targets `@simplewebauthn/browser` major version 13. Compatibility fixtures are
-pinned to version 13.1.2, which is also the version locked by the Phoenix demo.
+ExSwan targets `@simplewebauthn/browser` major version 13. Compatibility fixtures pin
+`@simplewebauthn/browser` and `@simplewebauthn/server` to version 13.1.2. The browser
+version also matches the version locked by the Phoenix demo.
 The initial protocol baseline is the Web Authentication Level 2 Recommendation already
 tracked in this repository. Later-level browser fields can pass through where they do
 not weaken Level 2 verification requirements.
@@ -18,6 +19,11 @@ Browser-ready option maps from ExSwan should pass directly to
   directions before merge.
 - A SimpleWebAuthn major-version update requires a compatibility review and may require
   a new ExSwan major version if the public Elixir interface changes.
+
+Run `make compatibility-fixtures` to regenerate the committed fixtures. Run
+`make compatibility-check` to type-check the generated options against the pinned
+browser package and fail on fixture drift. Compatibility-sensitive implementation
+work follows a red-green loop through the public `ExSwan` interface.
 
 ## Safety policy
 

@@ -1,0 +1,55 @@
+{
+  "metadata": {
+    "simpleWebAuthnBrowser": "13.1.2",
+    "simpleWebAuthnServer": "13.1.2"
+  },
+  "inputs": {
+    "challenge": "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE",
+    "credentialID": "CQgHBg"
+  },
+  "registration": {
+    "challenge": "QVFFQkFRRUJBUUVCQVFFQkFRRUJBUUVCQVFFQkFRRUJBUUVCQVFFQkFRRQ",
+    "rp": {
+      "name": "Example",
+      "id": "example.com"
+    },
+    "user": {
+      "id": "AQIDBA",
+      "name": "person@example.com",
+      "displayName": "Person"
+    },
+    "pubKeyCredParams": [
+      {
+        "alg": -7,
+        "type": "public-key"
+      }
+    ],
+    "timeout": 60000,
+    "attestation": "none",
+    "excludeCredentials": [],
+    "authenticatorSelection": {
+      "residentKey": "preferred",
+      "userVerification": "preferred",
+      "requireResidentKey": false
+    },
+    "extensions": {
+      "credProps": true
+    },
+    "hints": []
+  },
+  "authentication": {
+    "rpId": "example.com",
+    "challenge": "QVFFQkFRRUJBUUVCQVFFQkFRRUJBUUVCQVFFQkFRRUJBUUVCQVFFQkFRRQ",
+    "allowCredentials": [
+      {
+        "id": "CQgHBg",
+        "transports": [
+          "usb"
+        ],
+        "type": "public-key"
+      }
+    ],
+    "timeout": 60000,
+    "userVerification": "preferred"
+  }
+}
