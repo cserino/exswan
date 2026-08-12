@@ -356,7 +356,7 @@ The release sequence is:
 
 - [ ] Add a full ES256 registration-to-authentication vector.
 - [x] Add wrong challenge, origin, RP ID, ceremony type, and credential ID cases.
-- [ ] Add malformed base64url, JSON, CBOR, COSE, and authenticator-data cases.
+- [x] Add malformed base64url, JSON, CBOR, COSE, and authenticator-data cases.
 - [ ] Add algorithm-not-offered, UV/UP, BE/BS, counter rollback, and user-handle cases.
 - [ ] Add StreamData properties for base64url and all binary parsers.
 - [ ] Assert that no arbitrary public input crashes a verifier process.

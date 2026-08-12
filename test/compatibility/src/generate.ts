@@ -65,6 +65,19 @@ function mutateCredentialID<
   return mutated;
 }
 
+function withRegistrationAuthenticatorData(
+  response: RegistrationResponseJSON,
+  authenticatorData: Uint8Array,
+): RegistrationResponseJSON {
+  const mutated = structuredClone(response);
+  mutated.response.attestationObject = base64url(cbor.encode({
+    fmt: "none",
+    authData: authenticatorData,
+    attStmt: {},
+  }));
+  return mutated;
+}
+
 const registration = await generateRegistrationOptions({
   rpName: "Example",
   rpID: "example.com",
@@ -195,6 +208,52 @@ const invalidRegistrationCases = {
     response: mutateCredentialID(registrationResponse),
     expectedError: "credential_id_mismatch",
   },
+  malformedBase64url: {
+    response: {
+      ...registrationResponse,
+      response: {...registrationResponse.response, clientDataJSON: "not+base64"},
+    },
+    expectedError: "invalid_client_data_encoding",
+  },
+  malformedJSON: {
+    response: {
+      ...registrationResponse,
+      response: {...registrationResponse.response, clientDataJSON: base64url("{")},
+    },
+    expectedError: "invalid_client_data_json",
+  },
+  malformedCBOR: {
+    response: {
+      ...registrationResponse,
+      response: {
+        ...registrationResponse.response,
+        attestationObject: base64url(new Uint8Array([0xff])),
+      },
+    },
+    expectedError: "invalid_attestation_object",
+  },
+  truncatedAuthenticatorData: {
+    response: withRegistrationAuthenticatorData(
+      registrationResponse,
+      new Uint8Array(10),
+    ),
+    expectedError: "invalid_authenticator_data",
+  },
+  malformedCOSE: {
+    response: withRegistrationAuthenticatorData(
+      registrationResponse,
+      concat(
+        rpIDHash,
+        new Uint8Array([0x45]),
+        uint32(0),
+        aaguid,
+        credentialIDLength,
+        credentialIDBytes,
+        new Uint8Array([0xff]),
+      ),
+    ),
+    expectedError: "invalid_credential_public_key",
+  },
 };
 
 const invalidAuthenticationCases = {
@@ -218,6 +277,30 @@ const invalidAuthenticationCases = {
   wrongCredentialID: {
     response: mutateCredentialID(authenticationResponse),
     expectedError: "credential_id_mismatch",
+  },
+  malformedBase64url: {
+    response: {
+      ...authenticationResponse,
+      response: {...authenticationResponse.response, signature: "not+base64"},
+    },
+    expectedError: "invalid_signature_encoding",
+  },
+  malformedJSON: {
+    response: {
+      ...authenticationResponse,
+      response: {...authenticationResponse.response, clientDataJSON: base64url("{")},
+    },
+    expectedError: "invalid_client_data_json",
+  },
+  truncatedAuthenticatorData: {
+    response: {
+      ...authenticationResponse,
+      response: {
+        ...authenticationResponse.response,
+        authenticatorData: base64url(new Uint8Array(10)),
+      },
+    },
+    expectedError: "invalid_authenticator_data_length",
   },
 };
 

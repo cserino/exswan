@@ -39,8 +39,12 @@ defmodule ExSwan.CBORUtils do
       {:ok, decoded}
     else
       :error -> {:error, :invalid_attestation_object}
-      {:error, reason} -> {:error, reason}
+      {:error, _reason} -> {:error, :invalid_attestation_object}
     end
+  rescue
+    _error -> {:error, :invalid_attestation_object}
+  catch
+    _kind, _reason -> {:error, :invalid_attestation_object}
   end
 
   @doc """

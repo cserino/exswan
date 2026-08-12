@@ -436,32 +436,34 @@ defmodule ExSwan.Registration do
       extension_data_included: extension_data_included
     }
 
-    {attested_credential_data, extensions_data} =
+    credential_data_result =
       if attested_cred_data_included do
         parse_attested_credential_data(remaining, extension_data_included)
       else
-        {nil, if(extension_data_included, do: remaining, else: nil)}
+        {:ok, nil, if(extension_data_included, do: remaining, else: nil)}
       end
 
-    extensions =
-      if extension_data_included and extensions_data do
-        case CBORUtils.decode_extensions(extensions_data) do
-          {:ok, ext} -> ext
-          _ -> nil
+    with {:ok, attested_credential_data, extensions_data} <- credential_data_result do
+      extensions =
+        if extension_data_included and extensions_data do
+          case CBORUtils.decode_extensions(extensions_data) do
+            {:ok, ext} -> ext
+            _ -> nil
+          end
+        else
+          nil
         end
-      else
-        nil
-      end
 
-    authenticator_data = %Attestation.AuthenticatorData{
-      rp_id_hash: rp_id_hash,
-      flags: flags_struct,
-      sign_count: sign_count,
-      attested_credential_data: attested_credential_data,
-      extensions: extensions
-    }
+      authenticator_data = %Attestation.AuthenticatorData{
+        rp_id_hash: rp_id_hash,
+        flags: flags_struct,
+        sign_count: sign_count,
+        attested_credential_data: attested_credential_data,
+        extensions: extensions
+      }
 
-    {:ok, authenticator_data}
+      {:ok, authenticator_data}
+    end
   end
 
   defp parse_authenticator_data(_auth_data), do: {:error, :invalid_authenticator_data}
@@ -476,7 +478,7 @@ defmodule ExSwan.Registration do
 
     # TODO: clean this up
     # Parse credential public key (CBOR-encoded COSE key)
-    {credential_public_key, extensions_data} =
+    credential_public_key_result =
       if extension_data_included do
         # Need to parse CBOR to find where public key ends and extensions begin
         case CBORUtils.decode_credential_public_key(remaining) do
@@ -488,23 +490,29 @@ defmodule ExSwan.Registration do
             {CBORUtils.untag_decoded_cbor_data(public_key), ext_data}
 
           _ ->
-            {%{}, remaining}
+            {:error, :invalid_credential_public_key}
         end
       else
         case CBORUtils.decode_credential_public_key(remaining) do
           {:ok, public_key} -> {CBORUtils.untag_decoded_cbor_data(public_key), nil}
-          _ -> {%{}, nil}
+          _ -> {:error, :invalid_credential_public_key}
         end
       end
 
-    attested_credential_data = %Attestation.AttestedCredentialData{
-      aaguid: aaguid,
-      credential_id_length: credential_id_length,
-      credential_id: credential_id,
-      credential_public_key: credential_public_key
-    }
+    case credential_public_key_result do
+      {:error, _reason} = error ->
+        error
 
-    {attested_credential_data, extensions_data}
+      {public_key, extensions_data} ->
+        attested_credential_data = %Attestation.AttestedCredentialData{
+          aaguid: aaguid,
+          credential_id_length: credential_id_length,
+          credential_id: credential_id,
+          credential_public_key: public_key
+        }
+
+        {:ok, attested_credential_data, extensions_data}
+    end
   end
 
   defp verify_user_presence(authenticator_data) do

@@ -56,13 +56,18 @@ defmodule ExSwan.CompatibilityCeremonyTest do
     challenge = Base.url_decode64!(fixture["registration"]["challenge"], padding: false)
 
     for {name, invalid_case} <- fixture["invalid"]["registration"] do
-      assert ExSwan.verify_registration_response(
-               response: invalid_case["response"],
-               expected_challenge: challenge,
-               expected_origin: ceremony["origin"],
-               expected_rp_id: Map.get(invalid_case, "expectedRpID", ceremony["rpID"])
-             ) == {:error, expected_error(invalid_case["expectedError"])},
-             "registration mutation #{name} returned an unexpected result"
+      result =
+        ExSwan.verify_registration_response(
+          response: invalid_case["response"],
+          expected_challenge: challenge,
+          expected_origin: ceremony["origin"],
+          expected_rp_id: Map.get(invalid_case, "expectedRpID", ceremony["rpID"])
+        )
+
+      expected = {:error, expected_error(invalid_case["expectedError"])}
+
+      assert result == expected,
+             "registration mutation #{name}: expected #{inspect(expected)}, got #{inspect(result)}"
     end
   end
 
@@ -74,15 +79,20 @@ defmodule ExSwan.CompatibilityCeremonyTest do
     user_id = Base.url_decode64!(ceremony["userID"], padding: false)
 
     for {name, invalid_case} <- fixture["invalid"]["authentication"] do
-      assert ExSwan.verify_authentication_response(
-               response: invalid_case["response"],
-               expected_challenge: challenge,
-               expected_origin: ceremony["origin"],
-               expected_rp_id: Map.get(invalid_case, "expectedRpID", ceremony["rpID"]),
-               expected_user_handle: user_id,
-               credential: credential
-             ) == {:error, expected_error(invalid_case["expectedError"])},
-             "authentication mutation #{name} returned an unexpected result"
+      result =
+        ExSwan.verify_authentication_response(
+          response: invalid_case["response"],
+          expected_challenge: challenge,
+          expected_origin: ceremony["origin"],
+          expected_rp_id: Map.get(invalid_case, "expectedRpID", ceremony["rpID"]),
+          expected_user_handle: user_id,
+          credential: credential
+        )
+
+      expected = {:error, expected_error(invalid_case["expectedError"])}
+
+      assert result == expected,
+             "authentication mutation #{name}: expected #{inspect(expected)}, got #{inspect(result)}"
     end
   end
 
@@ -106,6 +116,15 @@ defmodule ExSwan.CompatibilityCeremonyTest do
   defp expected_error("invalid_client_data_type"), do: :invalid_client_data_type
   defp expected_error("rp_id_hash_mismatch"), do: :rp_id_hash_mismatch
   defp expected_error("credential_id_mismatch"), do: :credential_id_mismatch
+  defp expected_error("invalid_client_data_encoding"), do: :invalid_client_data_encoding
+  defp expected_error("invalid_client_data_json"), do: :invalid_client_data_json
+  defp expected_error("invalid_attestation_object"), do: :invalid_attestation_object
+  defp expected_error("invalid_authenticator_data"), do: :invalid_authenticator_data
+  defp expected_error("invalid_credential_public_key"), do: :invalid_credential_public_key
+  defp expected_error("invalid_signature_encoding"), do: :invalid_signature_encoding
+
+  defp expected_error("invalid_authenticator_data_length"),
+    do: :invalid_authenticator_data_length
 
   defp load_fixture do
     @fixture_path
