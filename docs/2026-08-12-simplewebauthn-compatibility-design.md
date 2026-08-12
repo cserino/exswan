@@ -346,7 +346,7 @@ The release sequence is:
   dependencies.
 - [ ] Generate registration and authentication options for comparison with ExSwan.
 - [ ] Generate browser response JSON and expected verification information.
-- [ ] Generate invalid cases by mutating valid fixtures.
+- [x] Generate invalid cases by mutating valid fixtures.
 - [ ] Add a reproducible root command to regenerate fixtures.
 - [ ] Make CI fail when committed fixtures differ from generated fixtures.
 - [ ] Test ExSwan options against SimpleWebAuthn browser types and expected shapes.
@@ -355,7 +355,7 @@ The release sequence is:
 ### 5. Complete cryptographic and rejection coverage
 
 - [ ] Add a full ES256 registration-to-authentication vector.
-- [ ] Add wrong challenge, origin, RP ID, ceremony type, and credential ID cases.
+- [x] Add wrong challenge, origin, RP ID, ceremony type, and credential ID cases.
 - [ ] Add malformed base64url, JSON, CBOR, COSE, and authenticator-data cases.
 - [ ] Add algorithm-not-offered, UV/UP, BE/BS, counter rollback, and user-handle cases.
 - [ ] Add StreamData properties for base64url and all binary parsers.

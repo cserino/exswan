@@ -43,6 +43,28 @@ function concat(...values: Uint8Array[]): Uint8Array {
   return result;
 }
 
+function mutateClientData<
+  T extends RegistrationResponseJSON | AuthenticationResponseJSON,
+>(response: T, changes: Record<string, unknown>): T {
+  const mutated = structuredClone(response);
+  const clientData = JSON.parse(
+    Buffer.from(mutated.response.clientDataJSON, "base64url").toString("utf8"),
+  ) as Record<string, unknown>;
+  mutated.response.clientDataJSON = base64url(
+    JSON.stringify({...clientData, ...changes}),
+  );
+  return mutated;
+}
+
+function mutateCredentialID<
+  T extends RegistrationResponseJSON | AuthenticationResponseJSON,
+>(response: T): T {
+  const mutated = structuredClone(response);
+  mutated.id = "AA";
+  mutated.rawId = "AA";
+  return mutated;
+}
+
 const registration = await generateRegistrationOptions({
   rpName: "Example",
   rpID: "example.com",
@@ -151,6 +173,54 @@ const authenticationResponse: AuthenticationResponseJSON = {
   },
 };
 
+const invalidRegistrationCases = {
+  wrongChallenge: {
+    response: mutateClientData(registrationResponse, {challenge: "AA"}),
+    expectedError: "challenge_mismatch",
+  },
+  wrongOrigin: {
+    response: mutateClientData(registrationResponse, {origin: "https://evil.example"}),
+    expectedError: "origin_mismatch",
+  },
+  wrongCeremonyType: {
+    response: mutateClientData(registrationResponse, {type: "webauthn.get"}),
+    expectedError: "invalid_client_data_type",
+  },
+  wrongRpID: {
+    response: registrationResponse,
+    expectedRpID: "wrong.example.com",
+    expectedError: "rp_id_hash_mismatch",
+  },
+  wrongCredentialID: {
+    response: mutateCredentialID(registrationResponse),
+    expectedError: "credential_id_mismatch",
+  },
+};
+
+const invalidAuthenticationCases = {
+  wrongChallenge: {
+    response: mutateClientData(authenticationResponse, {challenge: "AA"}),
+    expectedError: "challenge_mismatch",
+  },
+  wrongOrigin: {
+    response: mutateClientData(authenticationResponse, {origin: "https://evil.example"}),
+    expectedError: "origin_mismatch",
+  },
+  wrongCeremonyType: {
+    response: mutateClientData(authenticationResponse, {type: "webauthn.create"}),
+    expectedError: "invalid_client_data_type",
+  },
+  wrongRpID: {
+    response: authenticationResponse,
+    expectedRpID: "wrong.example.com",
+    expectedError: "rp_id_hash_mismatch",
+  },
+  wrongCredentialID: {
+    response: mutateCredentialID(authenticationResponse),
+    expectedError: "credential_id_mismatch",
+  },
+};
+
 await mkdir(fixtureDirectory, {recursive: true});
 await writeFile(
   new URL("options.json", fixtureDirectory),
@@ -178,6 +248,10 @@ await writeFile(
           credentialDeviceType: "single_device",
           credentialBackedUp: false,
         },
+      },
+      invalid: {
+        registration: invalidRegistrationCases,
+        authentication: invalidAuthenticationCases,
       },
     },
     null,
