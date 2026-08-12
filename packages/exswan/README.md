@@ -5,6 +5,8 @@
 
 **A security-focused WebAuthn server library for Elixir.**
 
+> **Alpha:** The `0.x` API can change, and the project has not completed its full WebAuthn conformance program. Review the [validation status](https://github.com/cserino/exswan/blob/main/docs/remaining-validation.md) before production use.
+
 ExSwan targets WebAuthn Level 2 and direct compatibility with
 `@simplewebauthn/browser` JSON. Its current compatibility evidence and intentional
 differences are recorded in
@@ -21,7 +23,7 @@ This package lives in the [exswan monorepo](https://github.com/cserino/exswan). 
 
 - Registration and authentication ceremony support
 - ES256 credential support with `none` attestation
-- Comprehensive security validation
+- Layered security validation
 
 🛡️ **Security First**
 
@@ -34,7 +36,7 @@ This package lives in the [exswan monorepo](https://github.com/cserino/exswan). 
 
 - Clean, documented APIs
 - Comprehensive error handling
-- Full test coverage
+- Unit, property, compatibility, and browser tests
 
 ## Installation
 

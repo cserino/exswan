@@ -6,6 +6,9 @@
 
 **WebAuthn (FIDO2) for Elixir** — a monorepo of standalone Hex packages for passwordless authentication.
 
+> [!WARNING]
+> ExSwan is alpha software. The `0.x` API can change, and the project has not yet completed its full WebAuthn conformance program. Review the [validation status](docs/remaining-validation.md) before production use.
+
 ## Packages
 
 | Package | Hex | Description | Version |
@@ -81,7 +84,7 @@ This is **not** an OTP umbrella. Packages are independent Mix projects under `pa
 
 ### Prerequisites
 
-- Elixir `~> 1.18` and a compatible OTP (see `.tool-versions`)
+- Elixir `~> 1.18` and OTP 27, 28, or 29. The canonical development toolchain is in `.tool-versions`; CI also tests the other supported OTP releases.
 - GNU Make
 
 ### Workspace commands
@@ -153,6 +156,8 @@ core package when `EXSWAN_MONOREPO=true`:
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md). Please open PRs against this monorepo — cross-package changes can ship atomically.
+
+See [RELEASES.md](RELEASES.md) for the independent package version policy and release process. Report suspected vulnerabilities through the private process in [SECURITY.md](SECURITY.md).
 
 ## Documentation
 

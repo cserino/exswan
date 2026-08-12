@@ -1,0 +1,15 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "release-type": "elixir",
+  "include-component-in-tag": true,
+  "packages": {
+    "packages/exswan": {
+      "component": "exswan",
+      "package-name": "exswan"
+    },
+    "packages/exswan_plug": {
+      "component": "exswan_plug",
+      "package-name": "exswan_plug"
+    }
+  }
+}

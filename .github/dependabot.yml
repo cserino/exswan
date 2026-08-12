@@ -1,0 +1,25 @@
+version: 2
+updates:
+  - package-ecosystem: mix
+    directory: /packages/exswan
+    schedule:
+      interval: weekly
+    groups:
+      mix-dependencies:
+        patterns: ["*"]
+
+  - package-ecosystem: mix
+    directory: /packages/exswan_plug
+    schedule:
+      interval: weekly
+    groups:
+      mix-dependencies:
+        patterns: ["*"]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      github-actions:
+        patterns: ["*"]

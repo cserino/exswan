@@ -8,7 +8,7 @@ export EXSWAN_MONOREPO ?= true
 
 PACKAGES := $(wildcard packages/*)
 
-.PHONY: deps compile test format format-check credo docs clean hex-build security-audit compatibility-fixtures compatibility-check browser-chromium conformance-harness help
+.PHONY: deps compile test format format-check credo docs clean hex-build release-check security-audit compatibility-fixtures compatibility-check browser-chromium conformance-harness help
 
 help:
 	@echo "ExSwan monorepo targets:"
@@ -20,6 +20,7 @@ help:
 	@echo "  make credo         - mix credo --strict for every package"
 	@echo "  make docs          - mix docs for every package"
 	@echo "  make hex-build     - mix hex.build for every package"
+	@echo "  make release-check - run package checks required before a release"
 	@echo "  make security-audit - check package, demo, and harness locks for Hex advisories"
 	@echo "  make compatibility-fixtures - regenerate pinned SimpleWebAuthn fixtures"
 	@echo "  make compatibility-check    - verify generated fixtures and browser types"
@@ -78,6 +79,8 @@ hex-build:
 	  echo "==> hex.build $$p"; \
 	  (cd $$p && EXSWAN_MONOREPO=false mix hex.build) || exit 1; \
 	done
+
+release-check: format-check compile test credo docs hex-build security-audit
 
 security-audit:
 	@for p in $(PACKAGES) examples/phoenix_webauthn_demo test/conformance; do \

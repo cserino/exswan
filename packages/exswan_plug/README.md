@@ -5,6 +5,8 @@
 
 Plug integration helpers for [ExSwan](https://hex.pm/packages/exswan), the Elixir WebAuthn (FIDO2) library.
 
+> **Alpha:** The `0.x` API can change, and the project has not completed its full WebAuthn conformance program. Review the [validation status](https://github.com/cserino/exswan/blob/main/docs/remaining-validation.md) before production use.
+
 The package owns expiring one-time ceremony state, calls ExSwan verification, and
 hands persistence back to the application through explicit callbacks.
 

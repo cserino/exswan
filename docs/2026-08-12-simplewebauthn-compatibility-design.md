@@ -1,7 +1,7 @@
 # SimpleWebAuthn Compatibility and Package Design
 
 - Date: 2026-08-12
-- Status: Proposed
+- Status: Implemented; external validation pending
 - Packages: `exswan`, `exswan_plug`
 
 ## Decision

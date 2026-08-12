@@ -1,0 +1,85 @@
+name: Publish Hex package
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag to publish (for example, exswan-v0.1.0)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-${{ github.event.release.tag_name || inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  select-package:
+    runs-on: ubuntu-latest
+    outputs:
+      package: ${{ steps.package.outputs.package }}
+      version: ${{ steps.package.outputs.version }}
+      tag: ${{ steps.package.outputs.tag }}
+    steps:
+      - id: package
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
+        run: |
+          case "$RELEASE_TAG" in
+            exswan-v*) package=exswan; version="${RELEASE_TAG#exswan-v}" ;;
+            exswan_plug-v*) package=exswan_plug; version="${RELEASE_TAG#exswan_plug-v}" ;;
+            *) echo "Unsupported release tag: $RELEASE_TAG" >&2; exit 1 ;;
+          esac
+          echo "package=$package" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
+
+  publish:
+    needs: select-package
+    runs-on: ubuntu-latest
+    environment: hex.pm
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.select-package.outputs.tag }}
+
+      - uses: erlef/setup-beam@v1
+        with:
+          otp-version: "28.0.1"
+          elixir-version: "1.18.4"
+
+      - name: Verify tag matches package version
+        working-directory: packages/${{ needs.select-package.outputs.package }}
+        env:
+          EXPECTED_VERSION: ${{ needs.select-package.outputs.version }}
+        run: |
+          actual_version="$(mix eval 'IO.write(Mix.Project.config()[:version])')"
+          test "$actual_version" = "$EXPECTED_VERSION" || {
+            echo "Tag version $EXPECTED_VERSION does not match mix.exs version $actual_version" >&2
+            exit 1
+          }
+
+      - name: Fetch dependencies
+        working-directory: packages/${{ needs.select-package.outputs.package }}
+        env:
+          EXSWAN_MONOREPO: "false"
+        run: mix deps.get
+
+      - name: Build package and documentation
+        working-directory: packages/${{ needs.select-package.outputs.package }}
+        env:
+          EXSWAN_MONOREPO: "false"
+        run: |
+          mix hex.build
+          mix docs
+
+      - name: Publish package and documentation
+        working-directory: packages/${{ needs.select-package.outputs.package }}
+        env:
+          EXSWAN_MONOREPO: "false"
+          HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
+        run: mix hex.publish --yes

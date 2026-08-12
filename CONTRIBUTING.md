@@ -56,7 +56,7 @@ mix format
 3. **Add tests** for any new functionality
 4. **Ensure all tests pass**: `make test`
 5. **Format your code**: `make format`
-6. **Update documentation** if needed (package README / CHANGELOG)
+6. **Update documentation** if needed. Release-please maintains package changelogs.
 7. **Submit a pull request**
 
 ## Coding Standards
@@ -96,6 +96,8 @@ mix format
 3. Ensure all tests pass and code is formatted
 4. Be responsive to feedback and review comments
 5. Squash commits if requested
+
+Use [Conventional Commits](https://www.conventionalcommits.org/) for the final commit message. Release-please uses that message to decide which package version to propose. See [RELEASES.md](RELEASES.md) for the supported commit types and pre-1.0 version policy.
 
 ## Code of Conduct
 

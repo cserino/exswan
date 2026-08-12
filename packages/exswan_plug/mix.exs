@@ -67,8 +67,9 @@ defmodule ExSwan.Plug.MixProject do
   defp docs do
     [
       main: "ExSwan.Plug",
-      source_ref: "v#{@version}",
-      source_url_pattern: "#{@source_url}/blob/main/packages/exswan_plug/%{path}#L%{line}",
+      source_ref: "exswan_plug-v#{@version}",
+      source_url_pattern:
+        "#{@source_url}/blob/exswan_plug-v#{@version}/packages/exswan_plug/%{path}#L%{line}",
       extras: ["README.md", "CHANGELOG.md"]
     ]
   end

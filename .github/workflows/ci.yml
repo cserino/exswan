@@ -41,7 +41,7 @@ jobs:
       - name: Set up Elixir
         uses: erlef/setup-beam@v1
         with:
-          otp-version: "27.3"
+          otp-version: "28.0.1"
           elixir-version: "1.18.4"
 
       - uses: oven-sh/setup-bun@v2
@@ -70,11 +70,25 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        package:
-          - exswan
-          - exswan_plug
-        otp: ["27.3"]
-        elixir: ["1.18.4"]
+        include:
+          - package: exswan
+            otp: "27.3"
+            elixir: "1.18.4"
+          - package: exswan
+            otp: "28.0.1"
+            elixir: "1.18.4"
+          - package: exswan
+            otp: "29.0.1"
+            elixir: "1.20.2"
+          - package: exswan_plug
+            otp: "27.3"
+            elixir: "1.18.4"
+          - package: exswan_plug
+            otp: "28.0.1"
+            elixir: "1.18.4"
+          - package: exswan_plug
+            otp: "29.0.1"
+            elixir: "1.20.2"
 
     defaults:
       run:
@@ -136,7 +150,7 @@ jobs:
       - name: Set up Elixir
         uses: erlef/setup-beam@v1
         with:
-          otp-version: "27.3"
+          otp-version: "28.0.1"
           elixir-version: "1.18.4"
 
       - name: Install dependencies
@@ -165,10 +179,16 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        package:
-          - exswan_plug
-        otp: ["27.3"]
-        elixir: ["1.18.4"]
+        include:
+          - package: exswan_plug
+            otp: "27.3"
+            elixir: "1.18.4"
+          - package: exswan_plug
+            otp: "28.0.1"
+            elixir: "1.18.4"
+          - package: exswan_plug
+            otp: "29.0.1"
+            elixir: "1.20.2"
 
     defaults:
       run:
