@@ -465,13 +465,12 @@ defmodule ExSwan.Registration do
 
   defp parse_authenticator_data(_auth_data), do: {:error, :invalid_authenticator_data}
 
-  defp parse_attested_credential_data(data, extension_data_included) do
-    <<
-      aaguid::binary-size(16),
-      credential_id_length::16-big,
-      credential_id::binary-size(credential_id_length),
-      remaining::binary
-    >> = data
+  defp parse_attested_credential_data(
+         <<aaguid::binary-size(16), credential_id_length::16-big, rest::binary>>,
+         extension_data_included
+       )
+       when byte_size(rest) >= credential_id_length do
+    <<credential_id::binary-size(credential_id_length), remaining::binary>> = rest
 
     # TODO: clean this up
     # Parse credential public key (CBOR-encoded COSE key)
@@ -480,6 +479,9 @@ defmodule ExSwan.Registration do
         case CBORUtils.decode_credential_public_key_with_remainder(remaining) do
           {:ok, public_key, extension_data} when extension_data != <<>> ->
             {CBORUtils.untag_decoded_cbor_data(public_key), extension_data}
+
+          {:ok, _public_key, <<>>} ->
+            {:error, :missing_authenticator_extensions}
 
           _ ->
             {:error, :invalid_credential_public_key}
@@ -506,6 +508,9 @@ defmodule ExSwan.Registration do
         {:ok, attested_credential_data, extensions_data}
     end
   end
+
+  defp parse_attested_credential_data(_data, _extension_data_included),
+    do: {:error, :invalid_authenticator_data}
 
   defp parse_registration_extensions(nil, false), do: {:ok, nil}
 

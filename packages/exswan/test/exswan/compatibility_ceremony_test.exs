@@ -140,6 +140,12 @@ defmodule ExSwan.CompatibilityCeremonyTest do
   defp expected_error("invalid_signature_counter"), do: :invalid_signature_counter
   defp expected_error("user_handle_mismatch"), do: :user_handle_mismatch
 
+  defp expected_error("missing_authenticator_extensions"),
+    do: :missing_authenticator_extensions
+
+  defp expected_error("invalid_authenticator_extensions"),
+    do: :invalid_authenticator_extensions
+
   defp expected_error("invalid_authenticator_data_length"),
     do: :invalid_authenticator_data_length
 

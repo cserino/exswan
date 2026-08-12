@@ -386,6 +386,44 @@ const invalidRegistrationCases = {
     ),
     expectedError: "invalid_credential_public_key",
   },
+  truncatedAttestedCredentialData: {
+    response: withRegistrationAuthenticatorData(
+      registrationResponse,
+      concat(rpIDHash, new Uint8Array([0x45]), uint32(0), new Uint8Array(10)),
+    ),
+    expectedError: "invalid_authenticator_data",
+  },
+  leftoverCoseBytes: {
+    response: withRegistrationAuthenticatorData(
+      registrationResponse,
+      registrationAuthenticatorDataWithCose(
+        concat(cosePublicKey, new Uint8Array([0x00])),
+      ),
+    ),
+    expectedError: "invalid_credential_public_key",
+  },
+  missingFlaggedExtensions: {
+    response: withRegistrationAuthenticatorData(
+      registrationResponse,
+      concat(
+        rpIDHash,
+        new Uint8Array([0xc5]),
+        uint32(0),
+        aaguid,
+        credentialIDLength,
+        credentialIDBytes,
+        cosePublicKey,
+      ),
+    ),
+    expectedError: "missing_authenticator_extensions",
+  },
+  trailingExtensionBytes: {
+    response: withRegistrationAuthenticatorData(
+      registrationResponse,
+      concat(registrationAuthenticatorData, new Uint8Array([0x00])),
+    ),
+    expectedError: "invalid_authenticator_extensions",
+  },
 };
 
 const invalidAuthenticationCases = {
