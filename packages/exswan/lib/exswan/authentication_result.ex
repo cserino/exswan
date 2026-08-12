@@ -12,6 +12,9 @@ defmodule ExSwan.AuthenticationResult do
     :credential_device_type,
     :credential_backed_up,
     :authenticator_extension_results,
+    :client_extension_results,
+    :authenticator_attachment,
+    :user_handle,
     :origin,
     :rp_id
   ]
@@ -24,6 +27,9 @@ defmodule ExSwan.AuthenticationResult do
           credential_device_type: :single_device | :multi_device,
           credential_backed_up: boolean(),
           authenticator_extension_results: map(),
+          client_extension_results: map(),
+          authenticator_attachment: String.t() | nil,
+          user_handle: binary() | nil,
           origin: String.t(),
           rp_id: String.t()
         }

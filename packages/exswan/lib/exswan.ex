@@ -254,6 +254,32 @@ defmodule ExSwan do
   end
 
   @doc """
+  Verifies a complete authentication response from `@simplewebauthn/browser`.
+
+  The result includes the new signature counter and backup state that the caller must
+  persist after successful verification.
+
+  ## Examples
+
+      ExSwan.verify_authentication_response(
+        response: browser_json,
+        expected_challenge: challenge,
+        expected_origin: "https://example.com",
+        expected_rp_id: "example.com",
+        credential: stored_credential
+      )
+  """
+  @spec verify_authentication_response(keyword()) ::
+          {:ok, ExSwan.AuthenticationResult.t()} | {:error, term()}
+  def verify_authentication_response(opts) when is_list(opts) do
+    with {:ok, response} <- fetch_option(opts, :response),
+         {:ok, credential} <- fetch_option(opts, :credential) do
+      verification_opts = Keyword.drop(opts, [:response, :credential])
+      Authentication.verify_response(response, credential, verification_opts)
+    end
+  end
+
+  @doc """
   Convenience function for converting registration options to JSON format.
 
   Delegates to `ExSwan.Registration.options_to_json/1`.

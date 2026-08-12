@@ -310,35 +310,33 @@ The release sequence is:
 - [ ] Redefine `ExSwan.Credential` as the public stored-credential value, including ID,
   public key, sign count, transports, device type, and backup state.
 - [x] Define private ceremony state for registration and authentication.
-- [ ] Implement the four keyword-based functions documented in this design. Generation
-  functions and registration verification are complete; authentication verification
-  remains.
+- [x] Implement the four keyword-based functions documented in this design.
 - [x] Return browser-ready maps and ceremony state from both generation functions.
 - [ ] Mark old struct-based and `options_to_json/1` interfaces for migration or removal.
 - [ ] Document every public function, option, result field, and error.
 
 ### 2. Make browser JSON a strict input seam
 
-- [ ] Add total parsers for registration and authentication browser response objects.
-  Registration is complete; authentication remains.
+- [x] Add total parsers for registration and authentication browser response objects.
 - [x] Accept string-keyed registration maps from JSON decoders without caller conversion.
 - [x] Validate required registration outer fields, nested response fields, and `type`.
 - [x] Implement one strict unpadded-base64url decoder for the new browser-input seam.
 - [x] Validate registration `id`/`rawId` and attested credential ID correspondence.
 - [x] Parse and preserve registration transports and client extension results.
-- [ ] Handle optional authentication `userHandle` and enforce expected-user matching.
+- [x] Handle optional authentication `userHandle` and enforce expected-user matching.
 - [ ] Ensure arbitrary maps and binaries return documented errors without raising.
 
 ### 3. Harden protocol parsing and verification
 
 - [ ] Reject CBOR values with trailing bytes in all security-sensitive parsers.
 - [ ] Reject truncated or leftover authenticator data, credential keys, and extensions.
+  Authentication authenticator data is complete; registration parsing remains.
 - [ ] Validate COSE key type, algorithm, curve, coordinate sizes, and required fields.
 - [ ] Enforce that the credential algorithm was offered during registration.
 - [ ] Enforce ceremony type, challenge, origin, RP ID hash, UP, and configured UV.
-- [ ] Reject the invalid backup-state combination `BS = 1` and `BE = 0`.
-- [ ] Derive and return device type and backup state for both ceremonies.
-- [ ] Implement safe signature-counter rules and always return `new_sign_count`.
+- [x] Reject the invalid backup-state combination `BS = 1` and `BE = 0`.
+- [x] Derive and return device type and backup state for both ceremonies.
+- [x] Implement safe signature-counter rules and always return `new_sign_count`.
 - [ ] Implement `none` attestation as the initial supported format.
 - [x] Limit generated algorithms to ES256 until other algorithms pass end-to-end tests.
 - [ ] Audit rescue/catch clauses so programmer errors are not mislabeled as user input.

@@ -9,7 +9,7 @@ defmodule ExSwan.Common do
 
   import Bitwise
 
-  alias ExSwan.Attestation
+  alias ExSwan.{Attestation, CBORUtils}
 
   @doc """
   Parses and verifies client data JSON from base64 encoding.
@@ -145,7 +145,7 @@ defmodule ExSwan.Common do
         rp_id_hash::binary-size(32),
         flags::8,
         sign_count::32-big,
-        _remaining::binary
+        remaining::binary
       >> = auth_data_bytes
 
       # Reference: vendor/SimpleWebAuthn/packages/server/src/helpers/parseAuthenticatorData.ts:28-38
@@ -170,15 +170,34 @@ defmodule ExSwan.Common do
         extension_data_included: extension_data_included
       }
 
-      authenticator_data = %Attestation.AuthenticatorData{
-        rp_id_hash: rp_id_hash,
-        flags: flags_struct,
-        sign_count: sign_count,
-        attested_credential_data: nil,
-        extensions: nil
-      }
+      with {:ok, extensions} <- parse_assertion_extensions(remaining, extension_data_included) do
+        authenticator_data = %Attestation.AuthenticatorData{
+          rp_id_hash: rp_id_hash,
+          flags: flags_struct,
+          sign_count: sign_count,
+          attested_credential_data: nil,
+          extensions: extensions
+        }
 
-      {:ok, authenticator_data}
+        {:ok, authenticator_data}
+      end
+    end
+  end
+
+  defp parse_assertion_extensions(<<>>, false), do: {:ok, nil}
+  defp parse_assertion_extensions(_remaining, false), do: {:error, :unexpected_authenticator_data}
+  defp parse_assertion_extensions(<<>>, true), do: {:error, :missing_authenticator_extensions}
+
+  defp parse_assertion_extensions(remaining, true) do
+    case CBOR.decode(remaining) do
+      {:ok, extensions, <<>>} when is_map(extensions) ->
+        {:ok, CBORUtils.untag_decoded_cbor_data(extensions)}
+
+      {:ok, _extensions, _trailing} ->
+        {:error, :unexpected_authenticator_data}
+
+      _error ->
+        {:error, :invalid_authenticator_extensions}
     end
   end
 
