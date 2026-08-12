@@ -1,0 +1,100 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  MIX_ENV: test
+  # Workspace jobs use local path dependencies between packages.
+  EXSWAN_MONOREPO: "true"
+
+jobs:
+  workspace:
+    name: "workspace / ${{ matrix.package }} / OTP ${{ matrix.otp }} / Elixir ${{ matrix.elixir }}"
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package:
+          - exswan
+          - exswan_plug
+        otp: ["27.3"]
+        elixir: ["1.18.4"]
+
+    defaults:
+      run:
+        working-directory: packages/${{ matrix.package }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Elixir
+        uses: erlef/setup-beam@v1
+        with:
+          otp-version: ${{ matrix.otp }}
+          elixir-version: ${{ matrix.elixir }}
+
+      - name: Cache deps and build
+        uses: actions/cache@v4
+        with:
+          path: |
+            packages/${{ matrix.package }}/deps
+            packages/${{ matrix.package }}/_build
+          key: ${{ runner.os }}-workspace-${{ matrix.package }}-${{ matrix.otp }}-${{ matrix.elixir }}-${{ hashFiles(format('packages/{0}/mix.lock', matrix.package)) }}
+          restore-keys: |
+            ${{ runner.os }}-workspace-${{ matrix.package }}-${{ matrix.otp }}-${{ matrix.elixir }}-
+
+      - name: Install dependencies
+        run: mix deps.get
+
+      - name: Compile (warnings as errors)
+        run: mix compile --warnings-as-errors
+
+      - name: Check formatting
+        run: mix format --check-formatted
+
+      - name: Run tests
+        run: mix test
+
+  # Integration packages against the published Hex graph (not path deps).
+  # Catches the monorepo bug where a package only works because it sees
+  # unreleased APIs from a sibling path dependency.
+  # Requires :exswan to be published on Hex; enable once 0.1.0 is released.
+  package-hex:
+    name: "package-hex / ${{ matrix.package }} / OTP ${{ matrix.otp }} / Elixir ${{ matrix.elixir }}"
+    if: false
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package:
+          - exswan_plug
+        otp: ["27.3"]
+        elixir: ["1.18.4"]
+
+    defaults:
+      run:
+        working-directory: packages/${{ matrix.package }}
+
+    env:
+      EXSWAN_MONOREPO: "false"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Elixir
+        uses: erlef/setup-beam@v1
+        with:
+          otp-version: ${{ matrix.otp }}
+          elixir-version: ${{ matrix.elixir }}
+
+      - name: Install dependencies (Hex graph)
+        run: mix deps.get
+
+      - name: Compile (warnings as errors)
+        run: mix compile --warnings-as-errors
+
+      - name: Run tests
+        run: mix test

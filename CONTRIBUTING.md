@@ -1,59 +1,86 @@
-# Contributing to ExWebauthn
+# Contributing to ExSwan
 
-Thank you for your interest in contributing to ExWebauthn! This document provides guidelines for contributing to the project.
+Thank you for your interest in contributing to ExSwan! This document provides guidelines for contributing to the monorepo.
 
 ## Development Setup
 
 1. Clone the repository:
 
    ```bash
-   git clone https://github.com/cserino/ex_webauthn.git
-   cd ex_webauthn
+   git clone https://github.com/cserino/exswan.git
+   cd exswan
    ```
 
-2. Install dependencies:
+2. Install dependencies for all packages:
 
    ```bash
-   mix deps.get
+   make deps
    ```
 
-3. Run tests to ensure everything is working:
+   This exports `EXSWAN_MONOREPO=true` so integration packages use local path dependencies.
+
+3. Run tests:
 
    ```bash
-   mix test
+   make test
    ```
+
+### Working on a single package
+
+```bash
+cd packages/exswan
+mix deps.get
+mix test
+mix format
+```
+
+## Monorepo notes
+
+- Packages live under `packages/` and are **independent Hex packages** (not an umbrella).
+- Prefer atomic PRs that touch related packages together when changing shared APIs.
+- Keep package versions independent; do not bump every package for an unrelated fix.
+- Integration packages switch between path and Hex deps via `EXSWAN_MONOREPO`:
+
+  ```bash
+  # Workspace (local path deps) — default via Makefile
+  make test
+
+  # Published Hex graph for exswan_plug (after exswan is on Hex)
+  EXSWAN_MONOREPO=false make test
+  ```
 
 ## Development Workflow
 
 1. **Fork the repository** and create your branch from `main`
 2. **Make your changes** following the coding standards
 3. **Add tests** for any new functionality
-4. **Ensure all tests pass**: `mix test`
-5. **Format your code**: `mix format`
-6. **Update documentation** if needed
+4. **Ensure all tests pass**: `make test`
+5. **Format your code**: `make format`
+6. **Update documentation** if needed (package README / CHANGELOG)
 7. **Submit a pull request**
 
 ## Coding Standards
 
 - Follow the project's coding style (enforced by `mix format`)
 - Write comprehensive tests for new features
-- Include @doc documentation for public functions
+- Include `@doc` documentation for public functions
 - Use descriptive variable and function names
 - Follow Elixir conventions for naming and code organization
+- Keep first-party modules under the `ExSwan` namespace
 
 ## Testing
 
 - All new code must include tests
 - Tests should cover both happy path and error cases
-- Run the full test suite with `mix test`
+- Run the full monorepo suite with `make test`
 - Maintain or improve test coverage
 
 ## Documentation
 
-- Update @doc comments for any changed public APIs
+- Update `@doc` comments for any changed public APIs
 - Include examples in documentation when helpful
-- Update README.md if adding significant features
-- Consider adding entries to docs/plan.md for major changes
+- Update the relevant package `README.md` and `CHANGELOG.md`
+- Consider adding entries to `docs/plan.md` for major changes
 
 ## Security
 
@@ -80,5 +107,4 @@ Thank you for your interest in contributing to ExWebauthn! This document provide
 
 If you have questions about contributing, please open an issue or reach out to the maintainers.
 
-Thank you for contributing to ExWebauthn! 🎉
-
+Thank you for contributing to ExSwan!

@@ -1,6 +1,6 @@
 # Phoenix WebAuthn Demo
 
-This is a complete demonstration application showcasing passwordless authentication using WebAuthn passkeys with the `ex_webauthn` library.
+This is a complete demonstration application showcasing passwordless authentication using WebAuthn passkeys with the `exswan` library.
 
 ## Features
 
@@ -104,7 +104,7 @@ For production, update:
 
 ## Related Documentation
 
-- [ex_webauthn Documentation](../../README.md)
+- [exswan Documentation](../../README.md)
 - [WebAuthn Specification](https://www.w3.org/TR/webauthn-2/)
 - [SimpleWebAuthn Documentation](https://simplewebauthn.dev/)
 - [Phoenix Framework Guides](https://hexdocs.pm/phoenix/overview.html)

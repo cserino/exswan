@@ -1,188 +1,165 @@
-# ExWebauthn
+# ExSwan
 
-[![Hex Version](https://img.shields.io/hexpm/v/ex_webauthn.svg)](https://hex.pm/packages/ex_webauthn)
-[![Docs](https://img.shields.io/badge/hex-docs-green.svg)](https://hexdocs.pm/ex_webauthn)
+[![Hex Version](https://img.shields.io/hexpm/v/exswan.svg)](https://hex.pm/packages/exswan)
+[![Docs](https://img.shields.io/badge/hex-docs-green.svg)](https://hexdocs.pm/exswan)
+[![CI](https://github.com/cserino/exswan/actions/workflows/ci.yml/badge.svg)](https://github.com/cserino/exswan/actions/workflows/ci.yml)
 
-**A complete Elixir implementation of the WebAuthn (FIDO2) specification for passwordless authentication.**
+**WebAuthn (FIDO2) for Elixir** — a monorepo of standalone Hex packages for passwordless authentication.
 
-ExWebauthn provides a robust, security-focused library for implementing WebAuthn authentication in Elixir applications. Built with compliance to the WebAuthn Level 2 specification, it enables developers to add secure, passwordless authentication using FIDO2-compatible authenticators like security keys, platform authenticators, and biometric devices.
+## Packages
 
-## Features
+| Package | Hex | Description | Version |
+| --- | --- | --- | --- |
+| [`exswan`](packages/exswan) | [hex.pm/packages/exswan](https://hex.pm/packages/exswan) | Core WebAuthn library | independent |
+| [`exswan_plug`](packages/exswan_plug) | [hex.pm/packages/exswan_plug](https://hex.pm/packages/exswan_plug) | Plug integration helpers | independent |
 
-🔐 **Complete WebAuthn Implementation**
+Each package is a **real standalone Hex package** with its own `mix.exs`, version, dependencies, changelog, and release lifecycle. Packages are **not** version-locked to each other.
 
-- Full WebAuthn Level 2 specification compliance
-- Registration and authentication ceremony support
-- Attestation format support for `none`, `packed`, and `fido-u2f`
-- Comprehensive security validation
+```text
+exswan/
+├── packages/
+│   ├── exswan/          # :exswan  → ExSwan
+│   └── exswan_plug/     # :exswan_plug → ExSwan.Plug
+├── examples/
+├── docs/
+├── Makefile
+└── .github/workflows/
+```
 
-🛡️ **Security First**
+Module namespaces stay under `ExSwan` for first-party packages:
 
-- Cryptographic challenge generation
-- Origin and RP ID validation
-- Replay attack protection
-- Certificate chain validation
-- Secure credential storage patterns
+```elixir
+ExSwan
+ExSwan.Registration
+ExSwan.Authentication
 
-⚡ **Developer Friendly**
-
-- Clean, documented APIs
-- Phoenix integration helpers
-- Comprehensive error handling
-- Full test coverage
+ExSwan.Plug   # from :exswan_plug
+```
 
 ## Installation
 
-Add `ex_webauthn` to your list of dependencies in `mix.exs`:
+Add the packages you need to your app's `mix.exs`:
 
 ```elixir
 def deps do
   [
-    {:ex_webauthn, "~> 0.1.0"}
+    {:exswan, "~> 0.1.0"},
+    # optional Plug helpers (stub / upcoming)
+    {:exswan_plug, "~> 0.1.0"}
   ]
 end
 ```
 
-## Quick Start
+See each package README for full usage:
 
-### 1. Registration Flow
+- [packages/exswan/README.md](packages/exswan/README.md)
+- [packages/exswan_plug/README.md](packages/exswan_plug/README.md)
+
+## Quick Start (core)
 
 ```elixir
-# Generate creation options for a new credential
-rp = %ExWebauthn.Credential.RelyingParty{
+rp = %ExSwan.Credential.RelyingParty{
   id: "example.com",
   name: "Example Corp"
 }
 
-user = %ExWebauthn.Credential.User{
+user = %ExSwan.Credential.User{
   id: :crypto.strong_rand_bytes(32),
   name: "user@example.com",
   display_name: "John Doe"
 }
 
-{:ok, options} = ExWebauthn.Registration.generate_creation_options(rp, user)
+{:ok, options} = ExSwan.Registration.generate_creation_options(rp, user)
+{:ok, credential} = ExSwan.Registration.verify_creation(response, options, origin)
 
-# Send options to client, receive attestation response
-# Then verify the registration response
-{:ok, credential} = ExWebauthn.Registration.verify_creation(response, options)
+{:ok, options} = ExSwan.Authentication.generate_request_options("example.com")
+{:ok, result} = ExSwan.Authentication.verify_assertion(response, options, stored_credential)
 ```
 
-### 2. Authentication Flow
+## Development (monorepo)
 
-```elixir
-# Generate request options for authentication
-{:ok, options} = ExWebauthn.Authentication.generate_request_options("example.com")
+This is **not** an OTP umbrella. Packages are independent Mix projects under `packages/`. Root tooling is deliberately thin.
 
-# Send options to client, receive assertion response
-# Then verify the authentication response
-{:ok, result} = ExWebauthn.Authentication.verify_assertion(response, options, stored_credential)
+### Prerequisites
+
+- Elixir `~> 1.18` and a compatible OTP (see `.tool-versions`)
+- GNU Make
+
+### Workspace commands
+
+```bash
+make deps          # mix deps.get in every package
+make test          # mix test in every package
+make compile       # mix compile --warnings-as-errors
+make format        # mix format
+make format-check  # mix format --check-formatted
+make docs          # mix docs
+make hex-build     # mix hex.build (validate publishable artifacts)
+make clean
 ```
 
-## Core Concepts
+Or work on a single package:
 
-### Credential Management
-
-```elixir
-# Create credential descriptors for allowlist
-descriptor = %ExWebauthn.Credential.Descriptor{
-  type: :public_key,
-  id: credential_id,
-  transports: ["usb", "nfc", "ble", "internal"]
-}
+```bash
+cd packages/exswan
+mix deps.get
+mix test
 ```
 
-### Security Validation
+### `EXSWAN_MONOREPO`
+
+Integration packages depend on the core library. Locally they should use a path dependency; when published they should depend on Hex.
 
 ```elixir
-# Validate challenges
-challenge = ExWebauthn.generate_challenge()
-:ok = ExWebauthn.validate(challenge)
-
-# Validate origins
-:ok = ExWebauthn.Validator.validate_origin("https://example.com", ["https://example.com"])
-```
-
-### CBOR Handling
-
-```elixir
-# Decode attestation objects
-{:ok, attestation_object} = ExWebauthn.CBOR.decode_attestation_object(cbor_data)
-
-# Decode credential public keys
-{:ok, public_key} = ExWebauthn.CBOR.decode_credential_public_key(cbor_data)
-```
-
-## Phoenix Integration
-
-ExWebauthn provides Phoenix-specific helpers for common patterns:
-
-```elixir
-# In your controller
-defmodule MyAppWeb.AuthController do
-  use MyAppWeb, :controller
-  alias ExWebauthn.Phoenix.Helpers
-
-  def begin_registration(conn, params) do
-    case Helpers.start_registration(conn, params) do
-      {:ok, options, conn} ->
-        json(conn, options)
-      {:error, reason} ->
-        put_status(conn, 400) |> json(%{error: reason})
-    end
+# packages/exswan_plug/mix.exs
+defp exswan_dep do
+  if System.get_env("EXSWAN_MONOREPO") == "true" do
+    {:exswan, path: "../exswan"}
+  else
+    {:exswan, "~> 0.1.0"}
   end
 end
 ```
 
-## Configuration
+The root `Makefile` exports `EXSWAN_MONOREPO=true` by default so workspace tests use local path deps.
 
-Configure ExWebauthn in your `config/config.exs`:
+To test against the **published** Hex graph (catches unreleased API usage):
 
-```elixir
-config :ex_webauthn,
-  # Default RP ID (can be overridden per operation)
-  rp_id: "example.com",
-  # Allowed origins for requests
-  origins: ["https://example.com", "https://www.example.com"],
-  # Default timeout for operations (milliseconds)
-  timeout: 60_000,
-  # Challenge size (minimum 16 bytes, default 32)
-  challenge_size: 32
+```bash
+EXSWAN_MONOREPO=false make test
+# or:
+cd packages/exswan_plug && EXSWAN_MONOREPO=false mix deps.get && mix test
 ```
 
-## Security Considerations
+CI runs:
 
-- Always validate origins against your allowlist
-- Use HTTPS in production environments
-- Implement proper credential storage with encryption
-- Regularly update dependencies for security patches
-- Consider implementing rate limiting for registration/authentication endpoints
-- Android SafetyNet attestation is intentionally unsupported because Google deprecated the service
-  and its trust guarantees cannot be validated without the retired Google infrastructure. Android
-  passkeys remain supported through `none` or another supported attestation format.
+1. **Workspace matrix** — each package with `EXSWAN_MONOREPO=true` (path deps)
+2. **Package / Hex matrix** (ready, enabled once `exswan` is published) — integration packages with Hex deps
+
+### Examples
+
+```bash
+cd examples/phoenix_webauthn_demo
+mix deps.get
+mix phx.server
+```
+
+The demo depends on the core package via path:
+
+```elixir
+{:exswan, path: "../../packages/exswan"}
+```
 
 ## Contributing
 
-We welcome contributions! Please see our [contributing guidelines](CONTRIBUTING.md) for details.
-
-1. Fork the repository
-2. Create a feature branch
-3. Add tests for your changes
-4. Ensure all tests pass with `mix test`
-5. Format code with `mix format`
-6. Submit a pull request
+See [CONTRIBUTING.md](CONTRIBUTING.md). Please open PRs against this monorepo — cross-package changes can ship atomically.
 
 ## Documentation
 
-- [API Documentation](https://hexdocs.pm/ex_webauthn)
-- [Development Plan](docs/plan.md)
-- [Agent Guidelines](AGENTS.md)
+- [Core package docs](https://hexdocs.pm/exswan)
+- [Development plan](docs/plan.md)
+- [Agent guidelines](AGENTS.md)
 
 ## License
 
-ExWebauthn is released under the MIT License. See [LICENSE](LICENSE) for details.
-
-## Acknowledgments
-
-- Built following the [WebAuthn W3C Specification](https://www.w3.org/TR/webauthn-2/)
-- Inspired by the FIDO Alliance's work on passwordless authentication
-- Thanks to the Elixir community for excellent libraries and tooling
+MIT — see [LICENSE](LICENSE).

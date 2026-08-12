@@ -1,8 +1,8 @@
-# ExWebauthn Project Plan
+# ExSwan Project Plan
 
 ## Overview
 
-ExWebauthn is an Elixir library for implementing WebAuthn (Web Authentication) specification, enabling passwordless authentication using FIDO2/WebAuthn standards.
+ExSwan is an Elixir library for implementing WebAuthn (Web Authentication) specification, enabling passwordless authentication using FIDO2/WebAuthn standards.
 
 ## Project Goals
 
@@ -14,10 +14,11 @@ ExWebauthn is an Elixir library for implementing WebAuthn (Web Authentication) s
 
 ## Current State
 
-- Basic Elixir project structure with Mix configuration
-- Minimal boilerplate code (hello world function)
-- Test framework setup with ExUnit
-- Code formatting configuration in place
+- Monorepo of standalone Hex packages under `packages/` (not an OTP umbrella)
+- Core package `:exswan` (`ExSwan.*`) with registration/authentication ceremonies
+- Stub package `:exswan_plug` (`ExSwan.Plug`) for future Plug helpers
+- Path vs Hex deps controlled by `EXSWAN_MONOREPO`
+- Root `Makefile` + GitHub Actions matrix CI
 
 ## Phase 1: Core Infrastructure (Weeks 1-2)
 
@@ -105,14 +106,19 @@ ExWebauthn is an Elixir library for implementing WebAuthn (Web Authentication) s
 ## Technical Architecture
 
 ```
-ExWebauthn/
-├── Credential          # Core credential management
-├── Registration        # Registration ceremony
-├── Authentication      # Authentication ceremony
-├── Attestation         # Attestation validation
-├── Utils              # Cryptographic utilities
-└── Integrations/      # Framework integrations
-    └── Phoenix        # Phoenix-specific helpers
+exswan/                              # git monorepo
+├── packages/
+│   ├── exswan/                      # :exswan (core Hex package)
+│   │   ├── ExSwan                   # Public API surface
+│   │   ├── ExSwan.Credential        # Core credential management
+│   │   ├── ExSwan.Registration      # Registration ceremony
+│   │   ├── ExSwan.Authentication    # Authentication ceremony
+│   │   ├── ExSwan.Attestation*      # Attestation validation
+│   │   └── ExSwan.Crypto / CBORUtils
+│   └── exswan_plug/                 # :exswan_plug (extension Hex package)
+│       └── ExSwan.Plug              # Plug helpers (stub)
+├── examples/
+└── Makefile                         # monorepo orchestration
 ```
 
 ## Success Metrics

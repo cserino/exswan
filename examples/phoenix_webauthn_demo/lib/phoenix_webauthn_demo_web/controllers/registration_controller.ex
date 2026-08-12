@@ -62,30 +62,30 @@ defmodule PhoenixWebauthnDemoWeb.RegistrationController do
          challenge when not is_nil(challenge) <- get_session(conn, :webauthn_challenge),
          user <- Accounts.get_user!(user_id) do
       # Reconstruct options for verification - need to create proper options struct
-      rp = %ExWebauthn.Credential.RelyingParty{
+      rp = %ExSwan.Credential.RelyingParty{
         id: Application.get_env(:phoenix_webauthn_demo, :webauthn)[:rp_id] || "localhost",
         name: "Phoenix WebAuthn Demo"
       }
 
-      webauthn_user = %ExWebauthn.Credential.User{
+      webauthn_user = %ExSwan.Credential.User{
         id: user.user_handle,
         name: user.email,
         display_name: user.display_name || user.email
       }
 
-      options = %ExWebauthn.Attestation.CreationOptions{
+      options = %ExSwan.Attestation.CreationOptions{
         challenge: challenge,
         rp: rp,
         user: webauthn_user,
         pub_key_cred_params: [
           # ES256
-          %ExWebauthn.Credential.Parameters{type: :public_key, alg: -7},
+          %ExSwan.Credential.Parameters{type: :public_key, alg: -7},
           # RS256
-          %ExWebauthn.Credential.Parameters{type: :public_key, alg: -257}
+          %ExSwan.Credential.Parameters{type: :public_key, alg: -257}
         ],
         timeout: 60_000,
         exclude_credentials: [],
-        authenticator_selection: %ExWebauthn.Attestation.AuthenticatorSelection{
+        authenticator_selection: %ExSwan.Attestation.AuthenticatorSelection{
           authenticator_attachment: nil,
           require_resident_key: false,
           resident_key: "preferred",

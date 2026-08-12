@@ -64,12 +64,12 @@ defmodule PhoenixWebauthnDemo.WebAuthn do
   Generates WebAuthn registration options for a user.
   """
   def generate_registration_options(%User{} = user) do
-    rp = %ExWebauthn.Credential.RelyingParty{
+    rp = %ExSwan.Credential.RelyingParty{
       id: get_rp_id(),
       name: "Phoenix WebAuthn Demo"
     }
 
-    webauthn_user = %ExWebauthn.Credential.User{
+    webauthn_user = %ExSwan.Credential.User{
       id: user.user_handle,
       name: user.email,
       display_name: user.display_name || user.email
@@ -80,14 +80,14 @@ defmodule PhoenixWebauthnDemo.WebAuthn do
 
     excluded_credentials =
       for cred <- existing_credentials do
-        %ExWebauthn.Credential.Descriptor{
+        %ExSwan.Credential.Descriptor{
           type: :public_key,
           id: cred.credential_id,
           transports: cred.transports
         }
       end
 
-    case ExWebauthn.Registration.generate_creation_options(
+    case ExSwan.Registration.generate_creation_options(
            rp,
            webauthn_user,
            exclude_credentials: excluded_credentials
@@ -103,7 +103,7 @@ defmodule PhoenixWebauthnDemo.WebAuthn do
   def verify_registration(response, options, %User{} = user) do
     origin = get_origin()
 
-    case ExWebauthn.Registration.verify_creation(response, options, origin) do
+    case ExSwan.Registration.verify_creation(response, options, origin) do
       {:ok, credential} ->
         # Store credential in database
         create_credential(%{
@@ -131,7 +131,7 @@ defmodule PhoenixWebauthnDemo.WebAuthn do
           user
           |> list_user_credentials()
           |> Enum.map(fn cred ->
-            %ExWebauthn.Credential.Descriptor{
+            %ExSwan.Credential.Descriptor{
               type: :public_key,
               id: cred.credential_id,
               transports: cred.transports
@@ -142,7 +142,7 @@ defmodule PhoenixWebauthnDemo.WebAuthn do
           []
       end
 
-    case ExWebauthn.Authentication.generate_request_options(get_rp_id(),
+    case ExSwan.Authentication.generate_request_options(get_rp_id(),
            allow_credentials: allowed_credentials
          ) do
       {:ok, options} -> {:ok, options}
@@ -159,7 +159,7 @@ defmodule PhoenixWebauthnDemo.WebAuthn do
         {:error, :credential_not_found}
 
       credential ->
-        stored_credential = %ExWebauthn.Credential{
+        stored_credential = %ExSwan.Credential{
           type: :public_key,
           id: credential.credential_id,
           private_key: nil,
@@ -173,7 +173,7 @@ defmodule PhoenixWebauthnDemo.WebAuthn do
         }
 
         # Convert options map to proper RequestOptions struct
-        request_options = %ExWebauthn.Assertion.RequestOptions{
+        request_options = %ExSwan.Assertion.RequestOptions{
           challenge: options.challenge,
           timeout: 60_000,
           rp_id: get_rp_id(),
@@ -184,7 +184,7 @@ defmodule PhoenixWebauthnDemo.WebAuthn do
 
         origin = get_origin()
 
-        case ExWebauthn.Authentication.verify_assertion(
+        case ExSwan.Authentication.verify_assertion(
                response,
                request_options,
                stored_credential,
