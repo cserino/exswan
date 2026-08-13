@@ -7,6 +7,7 @@ This is a **Hex-package monorepo** (not an OTP umbrella):
 ```text
 packages/exswan/       # :exswan — core WebAuthn library (ExSwan.*)
 packages/exswan_plug/  # :exswan_plug — Plug helpers (ExSwan.Plug)
+packages/exswan_test/  # :exswan_test — consumer test helpers (ExSwan.Test.*)
 examples/              # demo apps
 docs/                  # design / plan docs
 Makefile               # root orchestration (EXSWAN_MONOREPO=true by default)
@@ -52,6 +53,7 @@ Always set `EXSWAN_MONOREPO=true` when developing across packages so local chang
 | ------------- | --------------- | ------------- |
 | `exswan`      | `:exswan`       | `ExSwan`      |
 | `exswan_plug` | `:exswan_plug`  | `ExSwan.Plug` |
+| `exswan_test` | `:exswan_test`  | `ExSwan.Test` |
 
 First-party extension packages keep the `ExSwan.*` namespace. Independent semantic versions per package.
 
