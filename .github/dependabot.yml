@@ -16,6 +16,14 @@ updates:
       mix-dependencies:
         patterns: ["*"]
 
+  - package-ecosystem: mix
+    directory: /packages/exswan_test
+    schedule:
+      interval: weekly
+    groups:
+      mix-dependencies:
+        patterns: ["*"]
+
   - package-ecosystem: github-actions
     directory: /
     schedule:

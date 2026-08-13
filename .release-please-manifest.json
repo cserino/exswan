@@ -1,4 +1,5 @@
 {
   "packages/exswan": "0.1.0",
-  "packages/exswan_plug": "0.1.0"
+  "packages/exswan_plug": "0.1.0",
+  "packages/exswan_test": "0.1.0"
 }

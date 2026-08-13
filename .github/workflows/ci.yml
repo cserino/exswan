@@ -89,6 +89,15 @@ jobs:
           - package: exswan_plug
             otp: "29.0.1"
             elixir: "1.20.2"
+          - package: exswan_test
+            otp: "27.3"
+            elixir: "1.18.4"
+          - package: exswan_test
+            otp: "28.0.1"
+            elixir: "1.18.4"
+          - package: exswan_test
+            otp: "29.0.1"
+            elixir: "1.20.2"
 
     defaults:
       run:
@@ -187,6 +196,15 @@ jobs:
             otp: "28.0.1"
             elixir: "1.18.4"
           - package: exswan_plug
+            otp: "29.0.1"
+            elixir: "1.20.2"
+          - package: exswan_test
+            otp: "27.3"
+            elixir: "1.18.4"
+          - package: exswan_test
+            otp: "28.0.1"
+            elixir: "1.18.4"
+          - package: exswan_test
             otp: "29.0.1"
             elixir: "1.20.2"
 

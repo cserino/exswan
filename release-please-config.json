@@ -10,6 +10,10 @@
     "packages/exswan_plug": {
       "component": "exswan_plug",
       "package-name": "exswan_plug"
+    },
+    "packages/exswan_test": {
+      "component": "exswan_test",
+      "package-name": "exswan_test"
     }
   }
 }

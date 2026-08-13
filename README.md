@@ -15,14 +15,16 @@
 | --- | --- | --- | --- |
 | [`exswan`](packages/exswan) | [hex.pm/packages/exswan](https://hex.pm/packages/exswan) | Core WebAuthn library | independent |
 | [`exswan_plug`](packages/exswan_plug) | [hex.pm/packages/exswan_plug](https://hex.pm/packages/exswan_plug) | Plug integration helpers | independent |
+| [`exswan_test`](packages/exswan_test) | [hex.pm/packages/exswan_test](https://hex.pm/packages/exswan_test) | Consumer test authenticator and response builders | independent |
 
 Each package is a **real standalone Hex package** with its own `mix.exs`, version, dependencies, changelog, and release lifecycle. Packages are **not** version-locked to each other.
 
 ```text
 exswan/
 ├── packages/
-│   ├── exswan/          # :exswan  → ExSwan
-│   └── exswan_plug/     # :exswan_plug → ExSwan.Plug
+│   ├── exswan/          # :exswan → ExSwan
+│   ├── exswan_plug/     # :exswan_plug → ExSwan.Plug
+│   └── exswan_test/     # :exswan_test → ExSwan.Test
 ├── examples/
 ├── docs/
 ├── Makefile
@@ -37,6 +39,7 @@ ExSwan.Registration
 ExSwan.Authentication
 
 ExSwan.Plug   # from :exswan_plug
+ExSwan.Test.Authenticator # from :exswan_test
 ```
 
 ## Installation
@@ -48,7 +51,9 @@ def deps do
   [
     {:exswan, "~> 0.1.0"},
     # optional Plug ceremony lifecycle helpers
-    {:exswan_plug, "~> 0.1.0"}
+    {:exswan_plug, "~> 0.1.0"},
+    # optional consumer test helpers; never include in production
+    {:exswan_test, "~> 0.1.0", only: :test}
   ]
 end
 ```
@@ -57,6 +62,7 @@ See each package README for full usage:
 
 - [packages/exswan/README.md](packages/exswan/README.md)
 - [packages/exswan_plug/README.md](packages/exswan_plug/README.md)
+- [packages/exswan_test/README.md](packages/exswan_test/README.md)
 
 ## Quick Start (core)
 
@@ -164,6 +170,7 @@ See [RELEASES.md](RELEASES.md) for the independent package version policy and re
 - [Remaining browser and FIDO validation](docs/remaining-validation.md)
 - [Core package docs](https://hexdocs.pm/exswan)
 - [Development plan](docs/plan.md)
+- [Consumer testing guide](packages/exswan_test/docs/testing-guide.md)
 - [Agent guidelines](AGENTS.md)
 
 ## License

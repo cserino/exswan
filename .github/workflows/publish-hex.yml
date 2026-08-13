@@ -32,6 +32,7 @@ jobs:
           case "$RELEASE_TAG" in
             exswan-v*) package=exswan; version="${RELEASE_TAG#exswan-v}" ;;
             exswan_plug-v*) package=exswan_plug; version="${RELEASE_TAG#exswan_plug-v}" ;;
+            exswan_test-v*) package=exswan_test; version="${RELEASE_TAG#exswan_test-v}" ;;
             *) echo "Unsupported release tag: $RELEASE_TAG" >&2; exit 1 ;;
           esac
           echo "package=$package" >> "$GITHUB_OUTPUT"

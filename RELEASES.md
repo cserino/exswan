@@ -1,6 +1,6 @@
 # Releases
 
-ExSwan contains two independent Hex packages. Each package has its own version, changelog, GitHub release, and Hex release.
+ExSwan contains three independent Hex packages. Each package has its own version, changelog, GitHub release, and Hex release.
 
 ## Version policy
 
@@ -12,6 +12,7 @@ Package tags include the package name:
 
 - `exswan-v0.1.0`
 - `exswan_plug-v0.1.0`
+- `exswan_test-v0.1.0`
 
 ## Initial alpha release
 
@@ -20,8 +21,8 @@ The repository starts with version `0.1.0` in both package files. Bootstrap that
 1. Replace `Unreleased` in both `0.1.0` changelog headings with the release date.
 2. Run `make release-check` from a clean checkout.
 3. Commit the release state to `main`.
-4. Create the signed tags `exswan-v0.1.0` and `exswan_plug-v0.1.0` on that commit, then push them.
-5. Create a GitHub prerelease for each tag. Approve the `exswan` Hex deployment first. Approve `exswan_plug` only after Hex shows `exswan` version `0.1.0`.
+4. Create the signed tags `exswan-v0.1.0`, `exswan_plug-v0.1.0`, and `exswan_test-v0.1.0` on that commit, then push them.
+5. Create a GitHub prerelease for each tag. Approve the `exswan` Hex deployment first. Approve dependent packages only after Hex shows `exswan` version `0.1.0`.
 
 Do not change `.release-please-manifest.json` during this bootstrap. It records the versions that release-please will treat as the starting point for later releases.
 
@@ -58,7 +59,7 @@ Use a Hex API key limited to `api:write`. If the packages belong to a Hex organi
 
 For the first release, trigger the publish workflow manually from the GitHub release tag. This keeps the final publish step deliberate while the automation is new. After the workflow has completed successfully for both packages, automatic publication from later GitHub releases is reasonable.
 
-Publish `exswan` before `exswan_plug`. Hex cannot publish `exswan_plug` until its declared `exswan` dependency is available.
+Publish `exswan` before `exswan_plug` and `exswan_test`. Hex cannot publish either dependent package until its declared `exswan` dependency is available.
 
 ## Recovery
 
