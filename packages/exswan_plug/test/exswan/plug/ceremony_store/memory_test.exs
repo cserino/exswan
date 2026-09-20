@@ -32,6 +32,32 @@ defmodule ExSwan.Plug.CeremonyStore.MemoryTest do
     assert Enum.sort(results) == [{:error, :not_found}, {:ok, :ceremony}]
   end
 
+  test "periodic cleanup runs and reschedules without a consume call" do
+    test_pid = self()
+
+    clock = fn ->
+      send(test_pid, :cleanup_tick)
+      100
+    end
+
+    store = start_supervised!({Memory, cleanup_interval: 10, clock: clock}, id: :periodic)
+    assert :ok = Memory.put(store, "expired", :expired, 100)
+    assert :ok = Memory.put(store, "live", :live, 101)
+    assert_receive :cleanup_tick, 1_000
+    assert :sys.get_state(store).entries == %{"live" => {:live, 101}}
+    assert_receive :cleanup_tick, 1_000
+  end
+
+  test "consuming any token prunes unrelated expired entries", %{store: store} do
+    for token <- ["live", "expired", "missing"] do
+      assert :ok = Memory.put(store, "unrelated", :stale, 100)
+      assert :ok = Memory.put(store, "live", :live, 101)
+      assert :ok = Memory.put(store, "expired", :expired, 100)
+      Memory.consume(store, token, 100)
+      refute Map.has_key?(:sys.get_state(store).entries, "unrelated")
+    end
+  end
+
   test "cleanup removes abandoned expired ceremonies" do
     store =
       start_supervised!({Memory, cleanup_interval: 0, clock: fn -> 100 end},
