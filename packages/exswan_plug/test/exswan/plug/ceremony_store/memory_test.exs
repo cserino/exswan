@@ -31,4 +31,19 @@ defmodule ExSwan.Plug.CeremonyStore.MemoryTest do
 
     assert Enum.sort(results) == [{:error, :not_found}, {:ok, :ceremony}]
   end
+
+  test "cleanup removes abandoned expired ceremonies" do
+    store =
+      start_supervised!({Memory, cleanup_interval: 0, clock: fn -> 100 end},
+        id: :cleanup_store
+      )
+
+    assert :ok = Memory.put(store, "expired", :ceremony, 100)
+    assert :ok = Memory.put(store, "live", :ceremony, 101)
+
+    send(store, :cleanup)
+
+    assert {:error, :not_found} = Memory.consume(store, "expired", 99)
+    assert {:ok, :ceremony} = Memory.consume(store, "live", 100)
+  end
 end
