@@ -1,8 +1,8 @@
 # SimpleWebAuthn Compatibility
 
 ExSwan targets `@simplewebauthn/browser` major version 13. Compatibility fixtures pin
-`@simplewebauthn/browser` and `@simplewebauthn/server` to version 13.1.2. The browser
-version also matches the version locked by the Phoenix demo.
+`@simplewebauthn/browser` to 13.3.0 and `@simplewebauthn/server` to 13.3.3.
+The Phoenix demo also uses browser major version 13.
 Fixture generation runs on Bun 1.2.20. The supported runtime matrix is Elixir 1.18.4
 on OTP 27.3; additions require the full cryptographic and compatibility suites in CI.
 The initial protocol baseline is the Web Authentication Level 2 Recommendation already
