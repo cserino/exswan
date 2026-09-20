@@ -3,6 +3,28 @@ defmodule ExSwan.CommonTest do
 
   alias ExSwan.Common
 
+  test "decoded and encoded client data return the same values and errors" do
+    for json <- [
+          ~s({"type":"webauthn.get","challenge":"AQ","origin":"https://example.com"}),
+          ~s({"type":"webauthn.create"}),
+          ~s({}),
+          "null",
+          "true",
+          "1",
+          ~s("text"),
+          "[]",
+          "{"
+        ] do
+      assert Common.parse_client_data_json(json, "webauthn.get") ==
+               Common.parse_client_data(Base.url_encode64(json, padding: false), "webauthn.get")
+    end
+
+    for json <- ["null", "true", "1", ~s("text"), "[]", "{"] do
+      assert Common.parse_client_data_json(json, "webauthn.get") ==
+               {:error, :invalid_client_data_json}
+    end
+  end
+
   describe "parse_client_data/2" do
     test "rejects JSON values that are not objects" do
       encoded = Base.url_encode64("true", padding: false)

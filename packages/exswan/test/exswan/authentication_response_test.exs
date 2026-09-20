@@ -24,6 +24,47 @@ defmodule ExSwan.AuthenticationResponseTest do
   end
 
   describe "verify_authentication_response/1" do
+    test "decoded and legacy assertion paths agree on valid and malformed inputs", context do
+      response = browser_response(context.private_key)
+
+      options = %ExSwan.Assertion.RequestOptions{
+        challenge: @challenge,
+        rp_id: "example.com",
+        user_verification: "required"
+      }
+
+      legacy_verify = fn response ->
+        ExSwan.Authentication.verify_assertion(
+          response["response"],
+          options,
+          context.credential,
+          "https://example.com"
+        )
+      end
+
+      assert {:ok, decoded} = verify(response, context.credential)
+      assert {:ok, legacy} = legacy_verify.(response)
+
+      assert {:ok, legacy_authenticator_data} =
+               legacy.authenticator_data
+               |> Base.url_decode64!(padding: false)
+               |> ExSwan.Common.parse_authenticator_data()
+
+      assert decoded.new_sign_count == legacy_authenticator_data.sign_count
+
+      for {field, bytes} <- [
+            {"clientDataJSON", "null"},
+            {"clientDataJSON", "{"},
+            {"clientDataJSON", ~s({"type":"webauthn.get"})},
+            {"authenticatorData", <<0>>},
+            {"signature", <<1, 2, 3>>}
+          ] do
+        invalid = put_in(response, ["response", field], Base.url_encode64(bytes, padding: false))
+        assert {:error, _reason} = expected = legacy_verify.(invalid)
+        assert verify(invalid, context.credential) == expected
+      end
+    end
+
     test "accepts a complete browser response and returns update information", context do
       response = browser_response(context.private_key)
 

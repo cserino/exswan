@@ -158,12 +158,19 @@ defmodule ExSwan.Authentication do
          {:ok, origin} <- fetch_option(opts, :expected_origin),
          {:ok, rp_id} <- fetch_option(opts, :expected_rp_id),
          {:ok, normalized} <- normalize_browser_response(response),
-         :ok <- verify_credential_algorithm(credential),
+         {:ok, public_key} <- verify_credential_algorithm(credential),
          :ok <- verify_credential_id(normalized, credential),
          :ok <- verify_user_handle(normalized.user_handle, credential, opts),
          options <- verification_options(challenge, rp_id, opts),
          {:ok, verification} <-
-           verify_assertion_details(normalized.response, options, credential, origin),
+           verify_assertion_details(
+             normalized.response,
+             options,
+             credential,
+             origin,
+             normalized.decoded_response,
+             public_key
+           ),
          :ok <- verify_backup_flags(verification.authenticator_data.flags),
          :ok <- verify_device_type(verification.authenticator_data.flags, credential) do
       flags = verification.authenticator_data.flags
@@ -191,11 +198,27 @@ defmodule ExSwan.Authentication do
   def verify_response(_response, _credential, _opts),
     do: {:error, :invalid_authentication_response}
 
-  defp verify_assertion_details(response, options, credential, origins) do
+  defp verify_assertion_details(
+         response,
+         options,
+         credential,
+         origins,
+         decoded_response \\ nil,
+         public_key \\ nil
+       ) do
     with :ok <- validate_assertion_response_structure(response),
          {:ok, client_data, client_data_json} <-
-           parse_and_verify_client_data(response["clientDataJSON"], options.challenge, origins),
-         {:ok, authenticator_data} <- parse_authenticator_data(response["authenticatorData"]),
+           parse_and_verify_client_data(
+             response["clientDataJSON"],
+             decoded_value(decoded_response, :client_data_json),
+             options.challenge,
+             origins
+           ),
+         {:ok, authenticator_data} <-
+           parse_authenticator_data(
+             response["authenticatorData"],
+             decoded_value(decoded_response, :authenticator_data)
+           ),
          :ok <- verify_rp_id_hash(authenticator_data.rp_id_hash, options.rp_id),
          :ok <- verify_user_presence(authenticator_data),
          :ok <- verify_user_verification(authenticator_data, options.user_verification),
@@ -206,7 +229,9 @@ defmodule ExSwan.Authentication do
              response["signature"],
              response["authenticatorData"],
              client_data_hash,
-             credential
+             credential,
+             decoded_response,
+             public_key
            ),
          :ok <- validate_signature_counter(authenticator_data.sign_count, credential) do
       result = %Assertion.Result{
@@ -260,10 +285,15 @@ defmodule ExSwan.Authentication do
 
   defp validate_assertion_response_structure(_), do: {:error, :invalid_assertion_response_format}
 
-  defp parse_and_verify_client_data(client_data_base64, challenge, origins)
+  defp parse_and_verify_client_data(client_data_base64, decoded, challenge, origins)
        when is_binary(client_data_base64) do
-    with {:ok, {client_data, client_data_json}} <-
-           Common.parse_client_data(client_data_base64, "webauthn.get"),
+    parsed =
+      case decoded do
+        nil -> Common.parse_client_data(client_data_base64, "webauthn.get")
+        client_data_json -> Common.parse_client_data_json(client_data_json, "webauthn.get")
+      end
+
+    with {:ok, {client_data, client_data_json}} <- parsed,
          :ok <- Common.verify_challenge(client_data["challenge"], challenge),
          :ok <- Common.verify_origin(client_data["origin"], origins) do
       client_data_struct = %Assertion.ClientData{
@@ -278,13 +308,16 @@ defmodule ExSwan.Authentication do
     end
   end
 
-  defp parse_authenticator_data(auth_data_b64) when is_binary(auth_data_b64) do
+  defp parse_authenticator_data(auth_data_b64, nil) when is_binary(auth_data_b64) do
     with {:ok, auth_data_bytes} <- Base.url_decode64(auth_data_b64, padding: false) do
       Common.parse_authenticator_data(auth_data_bytes)
     else
       _ -> {:error, :invalid_authenticator_data_encoding}
     end
   end
+
+  defp parse_authenticator_data(_auth_data_b64, auth_data_bytes),
+    do: Common.parse_authenticator_data(auth_data_bytes)
 
   defp verify_rp_id_hash(received_hash, rp_id) when is_binary(received_hash) do
     Common.verify_rp_id_hash(received_hash, rp_id)
@@ -312,13 +345,22 @@ defmodule ExSwan.Authentication do
          signature_b64,
          authenticator_data_b64,
          client_data_hash,
-         credential
+         credential,
+         decoded_response,
+         public_key
        ) do
-    with {:ok, signature} <- decode_signature(signature_b64),
+    with {:ok, signature} <-
+           decoded_or_decode(
+             decoded_value(decoded_response, :signature),
+             fn -> decode_signature(signature_b64) end
+           ),
          {:ok, authenticator_data_raw} <-
-           decode_authenticator_data(authenticator_data_b64),
+           decoded_or_decode(
+             decoded_value(decoded_response, :authenticator_data),
+             fn -> decode_authenticator_data(authenticator_data_b64) end
+           ),
          {:ok, public_key_map} <-
-           get_credential_public_key(credential),
+           decoded_or_decode(public_key, fn -> get_credential_public_key(credential) end),
          {:ok, algorithm} <-
            get_signature_algorithm(public_key_map),
          signed_data <-
@@ -405,7 +447,8 @@ defmodule ExSwan.Authentication do
          {:ok, decoded_raw_id} <- decode_field(raw_id, :invalid_raw_id),
          :ok <- verify_matching_ids(id, raw_id, decoded_id, decoded_raw_id),
          {:ok, authenticator_response} <- fetch_map(response, "response"),
-         {:ok, user_handle} <- validate_browser_authenticator_response(authenticator_response),
+         {:ok, decoded_response} <-
+           validate_browser_authenticator_response(authenticator_response),
          {:ok, client_extension_results} <- fetch_map(response, "clientExtensionResults"),
          {:ok, authenticator_attachment} <-
            validate_authenticator_attachment(response["authenticatorAttachment"]) do
@@ -420,7 +463,8 @@ defmodule ExSwan.Authentication do
            "signature" => authenticator_response["signature"],
            "userHandle" => authenticator_response["userHandle"]
          },
-         user_handle: user_handle,
+         user_handle: decoded_response.user_handle,
+         decoded_response: Map.delete(decoded_response, :user_handle),
          client_extension_results: client_extension_results,
          authenticator_attachment: authenticator_attachment
        }}
@@ -431,13 +475,20 @@ defmodule ExSwan.Authentication do
     with {:ok, client_data_json} <- fetch_string(response, "clientDataJSON"),
          {:ok, authenticator_data} <- fetch_string(response, "authenticatorData"),
          {:ok, signature} <- fetch_string(response, "signature"),
-         {:ok, _decoded} <- decode_field(client_data_json, :invalid_client_data_encoding),
-         {:ok, _decoded} <-
+         {:ok, decoded_client_data_json} <-
+           decode_field(client_data_json, :invalid_client_data_encoding),
+         {:ok, decoded_authenticator_data} <-
            decode_field(authenticator_data, :invalid_authenticator_data_encoding),
          {:ok, decoded_signature} <- decode_field(signature, :invalid_signature_encoding),
          :ok <- require_nonempty(decoded_signature, :invalid_signature),
          {:ok, user_handle} <- decode_user_handle(response) do
-      {:ok, user_handle}
+      {:ok,
+       %{
+         client_data_json: decoded_client_data_json,
+         authenticator_data: decoded_authenticator_data,
+         signature: decoded_signature,
+         user_handle: user_handle
+       }}
     end
   end
 
@@ -493,7 +544,7 @@ defmodule ExSwan.Authentication do
 
   defp verify_credential_algorithm(%Credential{} = credential) do
     case get_credential_public_key(credential) do
-      {:ok, %{3 => -7}} -> :ok
+      {:ok, %{3 => -7} = public_key} -> {:ok, public_key}
       _other -> {:error, :unsupported_credential_algorithm}
     end
   end
@@ -560,4 +611,10 @@ defmodule ExSwan.Authentication do
 
   defp require_nonempty(<<>>, error), do: {:error, error}
   defp require_nonempty(_value, _error), do: :ok
+
+  defp decoded_value(nil, _key), do: nil
+  defp decoded_value(decoded, key), do: Map.get(decoded, key)
+
+  defp decoded_or_decode(nil, decode), do: decode.()
+  defp decoded_or_decode(value, _decode), do: {:ok, value}
 end
