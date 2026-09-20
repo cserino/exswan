@@ -46,7 +46,9 @@ defmodule ExSwan.Plug do
            ceremony: generated.ceremony,
            origin: config.origin,
            user: config.user,
-           require_user_verification: config.require_user_verification,
+           require_user_verification:
+             get_in(generated.options, ["authenticatorSelection", "userVerification"]) ==
+               "required",
            context: config.context
          },
          :ok <- store_put(config.ceremony_store, token, state, started_at + config.timeout) do
@@ -91,7 +93,7 @@ defmodule ExSwan.Plug do
            ceremony: generated.ceremony,
            origin: config.origin,
            expected_user_handle: config.expected_user_handle,
-           require_user_verification: config.require_user_verification,
+           require_user_verification: generated.options["userVerification"] == "required",
            context: config.context
          },
          :ok <- store_put(config.ceremony_store, token, state, started_at + config.timeout) do
@@ -162,7 +164,6 @@ defmodule ExSwan.Plug do
        %{
          user: user,
          origin: origin,
-         require_user_verification: registration_user_verification_required(opts),
          context: Keyword.get(opts, :context),
          ceremony_store: ceremony_store,
          timeout: timeout(opts),
@@ -184,8 +185,6 @@ defmodule ExSwan.Plug do
        %{
          origin: origin,
          expected_user_handle: Keyword.get(opts, :expected_user_handle),
-         require_user_verification:
-           user_verification_required(Keyword.get(opts, :user_verification)),
          context: Keyword.get(opts, :context),
          ceremony_store: ceremony_store,
          timeout: timeout(opts),
@@ -377,19 +376,6 @@ defmodule ExSwan.Plug do
 
   defp maybe_put(opts, _key, nil), do: opts
   defp maybe_put(opts, key, value), do: Keyword.put(opts, key, value)
-
-  defp registration_user_verification_required(opts) do
-    case Keyword.get(opts, :authenticator_selection) do
-      selection when is_map(selection) ->
-        selection |> Map.get(:user_verification) |> user_verification_required()
-
-      _selection ->
-        true
-    end
-  end
-
-  defp user_verification_required(value) when value in ["preferred", "discouraged"], do: false
-  defp user_verification_required(_value), do: true
 
   defp telemetry_reason(reason) when is_atom(reason), do: reason
   defp telemetry_reason({reason, _detail}) when is_atom(reason), do: reason
