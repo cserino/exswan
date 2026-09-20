@@ -49,4 +49,25 @@ defmodule ExSwan.CredentialTest do
       assert params.alg == -7
     end
   end
+
+  describe "Credential.Descriptor.normalize_list/1" do
+    test "preserves descriptors and converts stored credentials in order" do
+      descriptor = %Credential.Descriptor{type: :public_key, id: "first", transports: []}
+      credential = %Credential{id: "second", transports: ["internal"]}
+
+      assert {:ok, [^descriptor, normalized]} =
+               Credential.Descriptor.normalize_list([descriptor, credential])
+
+      assert normalized == %Credential.Descriptor{
+               type: :public_key,
+               id: "second",
+               transports: ["internal"]
+             }
+    end
+
+    test "rejects values that cannot become descriptors" do
+      assert Credential.Descriptor.normalize_list([%{}]) ==
+               {:error, :invalid_credential_descriptor}
+    end
+  end
 end

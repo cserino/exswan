@@ -50,6 +50,39 @@ defmodule ExSwan.Credential do
             transports: [String.t()]
           }
 
+    @doc """
+    Converts stored credentials and descriptors into a descriptor list.
+
+    Returns `{:error, :invalid_credential_descriptor}` when any item cannot be
+    represented as a public-key credential descriptor.
+    """
+    @spec normalize_list([t() | ExSwan.Credential.t()]) ::
+            {:ok, [t()]} | {:error, :invalid_credential_descriptor}
+    def normalize_list(credentials) when is_list(credentials) do
+      credentials
+      |> Enum.reduce_while({:ok, []}, fn
+        %__MODULE__{} = descriptor, {:ok, normalized} ->
+          {:cont, {:ok, [descriptor | normalized]}}
+
+        %ExSwan.Credential{id: id, transports: transports}, {:ok, normalized}
+        when is_binary(id) ->
+          descriptor = %__MODULE__{
+            type: :public_key,
+            id: id,
+            transports: transports || []
+          }
+
+          {:cont, {:ok, [descriptor | normalized]}}
+
+        _credential, _acc ->
+          {:halt, {:error, :invalid_credential_descriptor}}
+      end)
+      |> case do
+        {:ok, normalized} -> {:ok, Enum.reverse(normalized)}
+        error -> error
+      end
+    end
+
     def to_json(%__MODULE__{} = desc) do
       %{
         "type" => "public-key",
