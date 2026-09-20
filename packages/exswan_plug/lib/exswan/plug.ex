@@ -46,6 +46,9 @@ defmodule ExSwan.Plug do
            ceremony: generated.ceremony,
            origin: config.origin,
            user: config.user,
+           require_user_verification:
+             get_in(generated.options, ["authenticatorSelection", "userVerification"]) ==
+               "required",
            context: config.context
          },
          :ok <- store_put(config.ceremony_store, token, state, started_at + config.timeout) do
@@ -90,6 +93,7 @@ defmodule ExSwan.Plug do
            ceremony: generated.ceremony,
            origin: config.origin,
            expected_user_handle: config.expected_user_handle,
+           require_user_verification: generated.options["userVerification"] == "required",
            context: config.context
          },
          :ok <- store_put(config.ceremony_store, token, state, started_at + config.timeout) do
@@ -224,6 +228,7 @@ defmodule ExSwan.Plug do
              expected_challenge: state.ceremony.challenge,
              expected_origin: state.origin,
              expected_rp_id: state.ceremony.rp_id,
+             require_user_verification: state.require_user_verification,
              expected_user_handle: state.ceremony.user_id
            ),
          {:ok, persisted} <-
@@ -255,6 +260,7 @@ defmodule ExSwan.Plug do
       credential: credential
     ]
     |> maybe_put(:expected_user_handle, state.expected_user_handle)
+    |> Keyword.put(:require_user_verification, state.require_user_verification)
   end
 
   defp finish_result({:ok, result, persisted}, type, conn, started_at) do

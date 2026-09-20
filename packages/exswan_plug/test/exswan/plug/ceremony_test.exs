@@ -168,6 +168,93 @@ defmodule ExSwan.Plug.CeremonyTest do
     assert authentication.new_sign_count == 1
   end
 
+  for policy <- [nil, "preferred", "discouraged", "required"] do
+    test "authentication preserves user-verification policy #{inspect(policy)}", context do
+      policy = unquote(policy)
+      fixture = context.fixture
+      ceremony = fixture["ceremony"]
+      credential = register_fixture(fixture)
+
+      opts = [
+        rp_id: ceremony["rpID"],
+        origin: ceremony["origin"],
+        challenge: fixture["inputs"]["challenge"],
+        expected_user_handle: Base.url_decode64!(ceremony["userID"], padding: false),
+        ceremony_store: context.ceremony_store,
+        context: %{test_pid: self(), credential: credential},
+        now: 100
+      ]
+
+      opts = if policy, do: Keyword.put(opts, :user_verification, policy), else: opts
+      assert {:ok, conn, options} = ExSwan.Plug.begin_authentication(conn(), opts)
+      assert options["userVerification"] == (policy || "preferred")
+      response = fixture["invalid"]["authentication"]["userVerificationMissing"]["response"]
+
+      result =
+        ExSwan.Plug.finish_authentication(conn,
+          response: response,
+          store: Store,
+          ceremony_store: context.ceremony_store,
+          now: 101
+        )
+
+      if options["userVerification"] == "required" do
+        assert result == {:error, :user_verification_required}
+        refute_received {:update_credential, _, _}
+      else
+        assert {:ok, _conn, _authentication, :updated} = result
+      end
+    end
+  end
+
+  for selection <- [
+        nil,
+        %{},
+        %{user_verification: "preferred"},
+        %{user_verification: "discouraged"},
+        %{user_verification: "required"}
+      ] do
+    test "registration preserves user-verification selection #{inspect(selection)}", context do
+      selection = unquote(Macro.escape(selection))
+      fixture = context.fixture
+      ceremony = fixture["ceremony"]
+
+      opts = [
+        user: :authorized_user,
+        user_handle: Base.url_decode64!(ceremony["userID"], padding: false),
+        user_name: "person@example.com",
+        rp_name: "Example",
+        rp_id: ceremony["rpID"],
+        origin: ceremony["origin"],
+        challenge: fixture["inputs"]["challenge"],
+        ceremony_store: context.ceremony_store,
+        context: %{test_pid: self()},
+        now: 100
+      ]
+
+      opts = if selection, do: Keyword.put(opts, :authenticator_selection, selection), else: opts
+      assert {:ok, conn, options} = ExSwan.Plug.begin_registration(conn(), opts)
+      expected_policy = if selection, do: Map.get(selection, :user_verification, "preferred")
+      assert get_in(options, ["authenticatorSelection", "userVerification"]) == expected_policy
+      response = fixture["invalid"]["registration"]["userVerificationMissing"]["response"]
+
+      result =
+        ExSwan.Plug.finish_registration(conn,
+          response: response,
+          store: Store,
+          ceremony_store: context.ceremony_store,
+          now: 101
+        )
+
+      if expected_policy == "required" do
+        assert result == {:error, :user_verification_required}
+        refute_received {:create_credential, _, _}
+      else
+        assert {:ok, _conn, _registration, :created} = result
+      end
+    end
+  end
+
   test "configuration rejects unsafe origins and malformed RP IDs" do
     assert {:error, :invalid_origin} =
              ExSwan.Plug.validate_config(rp_id: "example.com", origin: "http://example.com")
