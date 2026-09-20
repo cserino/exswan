@@ -223,7 +223,8 @@ defmodule ExSwan.Plug do
              response: response,
              expected_challenge: state.ceremony.challenge,
              expected_origin: state.origin,
-             expected_rp_id: state.ceremony.rp_id
+             expected_rp_id: state.ceremony.rp_id,
+             expected_user_handle: state.ceremony.user_id
            ),
          {:ok, persisted} <-
            store.create_credential(state.user, result, callback_context(state, opts)) do
