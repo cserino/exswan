@@ -338,7 +338,8 @@ defmodule ExSwan.Plug.CeremonyTest do
         response: ceremony["registrationResponse"],
         expected_challenge: fixture["inputs"]["challenge"],
         expected_origin: ceremony["origin"],
-        expected_rp_id: ceremony["rpID"]
+        expected_rp_id: ceremony["rpID"],
+        expected_user_handle: Base.url_decode64!(ceremony["userID"], padding: false)
       )
 
     result.credential

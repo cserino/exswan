@@ -92,7 +92,8 @@ defmodule ExSwan do
         response: browser_json,
         expected_challenge: challenge,
         expected_origin: "https://example.com",
-        expected_rp_id: "example.com"
+        expected_rp_id: "example.com",
+        expected_user_handle: user_handle
       )
   """
   @spec verify_registration_response(keyword()) ::
