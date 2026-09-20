@@ -389,26 +389,9 @@ defmodule ExSwan.Authentication do
   defp normalize_allow_credentials(nil), do: {:ok, nil}
 
   defp normalize_allow_credentials(credentials) when is_list(credentials) do
-    credentials
-    |> Enum.reduce_while({:ok, []}, fn
-      %Credential.Descriptor{} = descriptor, {:ok, normalized} ->
-        {:cont, {:ok, [descriptor | normalized]}}
-
-      %Credential{id: id, transports: transports}, {:ok, normalized} when is_binary(id) ->
-        descriptor = %Credential.Descriptor{
-          type: :public_key,
-          id: id,
-          transports: transports || []
-        }
-
-        {:cont, {:ok, [descriptor | normalized]}}
-
-      _credential, _acc ->
-        {:halt, {:error, :invalid_allow_credentials}}
-    end)
-    |> case do
-      {:ok, normalized} -> {:ok, Enum.reverse(normalized)}
-      error -> error
+    case Credential.Descriptor.normalize_list(credentials) do
+      {:ok, normalized} -> {:ok, normalized}
+      {:error, :invalid_credential_descriptor} -> {:error, :invalid_allow_credentials}
     end
   end
 
