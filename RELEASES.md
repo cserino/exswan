@@ -28,6 +28,18 @@ Do not change `.release-please-manifest.json` during this bootstrap. It records 
 
 ## Release preparation
 
+The authentication ownership fix requires core `exswan` 0.1.1 or later. Publish
+that core release before publishing the Plug changes that require `~> 0.1.1`.
+Keep package versions independent; the dependency floor records this compatibility
+requirement. The workspace tests use local packages until the core release is on Hex.
+
+Applications must persist the registration credential's `user_handle`. Before
+upgrading, backfill missing handles from each credential's trusted account ownership
+record. Never use a handle supplied in an authentication response for this migration.
+Core callers must pass the ceremony's `expected_user_handle` when verifying
+registration. Authentication with an expected user now rejects credentials with a
+missing or different stored handle, even when the browser omits `userHandle`.
+
 [release-please](https://github.com/googleapis/release-please) maintains versions and changelogs from Conventional Commit messages. Manifest mode lets each package release independently.
 
 The workflow uses `GITHUB_TOKEN` by default. In repository Actions settings, allow GitHub Actions to create pull requests. If release PRs must trigger other workflows automatically, add a fine-grained `RELEASE_PLEASE_TOKEN` secret with access limited to this repository and permission to write contents and pull requests.
