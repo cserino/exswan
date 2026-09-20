@@ -24,6 +24,22 @@ updates:
       mix-dependencies:
         patterns: ["*"]
 
+  - package-ecosystem: mix
+    directory: /examples/phoenix_webauthn_demo
+    schedule:
+      interval: weekly
+    groups:
+      mix-dependencies:
+        patterns: ["*"]
+
+  - package-ecosystem: mix
+    directory: /test/conformance
+    schedule:
+      interval: weekly
+    groups:
+      mix-dependencies:
+        patterns: ["*"]
+
   - package-ecosystem: github-actions
     directory: /
     schedule:
