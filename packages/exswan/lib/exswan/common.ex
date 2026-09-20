@@ -41,11 +41,12 @@ defmodule ExSwan.Common do
   @spec parse_client_data_json(binary(), String.t()) ::
           {:ok, {map(), binary()}} | {:error, atom()}
   def parse_client_data_json(client_data_json, expected_type) when is_binary(client_data_json) do
-    with {:ok, client_data} <- Jason.decode(client_data_json),
+    with {:ok, client_data} when is_map(client_data) <- Jason.decode(client_data_json),
          :ok <- verify_client_data_type(client_data["type"], expected_type) do
       {:ok, {client_data, client_data_json}}
     else
       {:error, %Jason.DecodeError{}} -> {:error, :invalid_client_data_json}
+      {:ok, _value} -> {:error, :invalid_client_data_json}
       error -> error
     end
   end
@@ -98,6 +99,9 @@ defmodule ExSwan.Common do
         {:error, :invalid_challenge_encoding}
     end
   end
+
+  def verify_challenge(_received_challenge, _expected_challenge),
+    do: {:error, :invalid_challenge_encoding}
 
   @doc """
   Verifies client data origin against expected origin(s).
