@@ -504,8 +504,8 @@ await writeFile(
   `${JSON.stringify(
     {
       metadata: {
-        simpleWebAuthnBrowser: "13.1.2",
-        simpleWebAuthnServer: "13.1.2",
+        simpleWebAuthnBrowser: "13.3.0",
+        simpleWebAuthnServer: "13.3.3",
       },
       inputs: {challenge, credentialID},
       registration: browserRegistrationOptions,
