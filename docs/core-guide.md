@@ -21,7 +21,8 @@ server.
     response: browser_json,
     expected_challenge: ceremony.challenge,
     expected_origin: "https://example.com",
-    expected_rp_id: ceremony.rp_id
+    expected_rp_id: ceremony.rp_id,
+    expected_user_handle: ceremony.user_id
   )
 ```
 

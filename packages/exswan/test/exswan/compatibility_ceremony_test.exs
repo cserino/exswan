@@ -22,10 +22,12 @@ defmodule ExSwan.CompatibilityCeremonyTest do
                response: ceremony["registrationResponse"],
                expected_challenge: registration_challenge,
                expected_origin: ceremony["origin"],
-               expected_rp_id: ceremony["rpID"]
+               expected_rp_id: ceremony["rpID"],
+               expected_user_handle: user_id
              )
 
     assert registration.credential.id == expected["credentialID"]
+    assert registration.credential.user_handle == user_id
     assert is_binary(registration.credential.public_key)
     assert registration.credential.sign_count == expected["registrationSignCount"]
     assert registration.attestation_format == :none
@@ -106,6 +108,7 @@ defmodule ExSwan.CompatibilityCeremonyTest do
 
   defp register_credential(fixture) do
     ceremony = fixture["ceremony"]
+    user_id = Base.url_decode64!(ceremony["userID"], padding: false)
     challenge = Base.url_decode64!(fixture["registration"]["challenge"], padding: false)
 
     {:ok, registration} =
@@ -113,7 +116,8 @@ defmodule ExSwan.CompatibilityCeremonyTest do
         response: ceremony["registrationResponse"],
         expected_challenge: challenge,
         expected_origin: ceremony["origin"],
-        expected_rp_id: ceremony["rpID"]
+        expected_rp_id: ceremony["rpID"],
+        expected_user_handle: user_id
       )
 
     registration.credential
