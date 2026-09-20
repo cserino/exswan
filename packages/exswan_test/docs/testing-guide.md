@@ -48,7 +48,8 @@ assert {:ok, registration} =
            response: response,
            expected_challenge: challenge,
            expected_origin: origin,
-           expected_rp_id: rp_id
+           expected_rp_id: rp_id,
+           expected_user_handle: user_handle
          )
 
 credential = registration.credential

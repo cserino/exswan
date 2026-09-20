@@ -99,6 +99,19 @@ defmodule ExSwan.AuthenticationResponseTest do
       assert {:ok, %AuthenticationResult{user_handle: nil}} = verify(response, context.credential)
     end
 
+    test "binds a non-discoverable assertion to the expected user", context do
+      response = put_in(browser_response(context.private_key), ["response", "userHandle"], nil)
+
+      assert ExSwan.verify_authentication_response(
+               response: response,
+               expected_challenge: @challenge,
+               expected_origin: "https://example.com",
+               expected_rp_id: "example.com",
+               expected_user_handle: <<1>>,
+               credential: context.credential
+             ) == {:error, :user_handle_mismatch}
+    end
+
     test "rejects backup state without backup eligibility", context do
       response = browser_response(context.private_key, 0x15)
       assert verify(response, context.credential) == {:error, :invalid_backup_flags}

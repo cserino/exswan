@@ -43,7 +43,7 @@ defmodule ExSwan.Plug.MixProject do
     if System.get_env("EXSWAN_MONOREPO") == "true" do
       {:exswan, path: "../exswan"}
     else
-      {:exswan, "~> 0.1.0"}
+      {:exswan, "~> 0.1.1"}
     end
   end
 

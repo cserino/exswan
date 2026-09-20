@@ -187,6 +187,8 @@ defmodule ExSwan.Registration do
       credential = %{
         verification.credential
         | public_key: public_key,
+          user_handle:
+            Keyword.get(opts, :expected_user_handle, verification.credential.user_handle),
           transports: normalized.transports,
           credential_device_type: credential_device_type,
           credential_backed_up: flags.backup_state

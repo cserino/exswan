@@ -463,13 +463,18 @@ defmodule ExSwan.Authentication do
   defp verify_user_handle(received, credential, opts) do
     expected = Keyword.get(opts, :expected_user_handle, credential.user_handle)
 
-    case {received, expected} do
-      {nil, _expected} -> :ok
-      {value, value} when is_binary(value) -> :ok
-      {_received, nil} -> {:error, :unexpected_user_handle}
-      {_received, _expected} -> {:error, :user_handle_mismatch}
+    with :ok <- verify_credential_owner(credential.user_handle, expected) do
+      case {received, expected} do
+        {nil, _expected} -> :ok
+        {value, value} when is_binary(value) -> :ok
+        {_received, nil} -> {:error, :unexpected_user_handle}
+        {_received, _expected} -> {:error, :user_handle_mismatch}
+      end
     end
   end
+
+  defp verify_credential_owner(user_handle, user_handle), do: :ok
+  defp verify_credential_owner(_stored, _expected), do: {:error, :user_handle_mismatch}
 
   defp verify_backup_flags(%Attestation.Flags{backup_eligible: false, backup_state: true}),
     do: {:error, :invalid_backup_flags}
