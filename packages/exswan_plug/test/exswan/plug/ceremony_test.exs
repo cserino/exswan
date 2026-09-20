@@ -168,6 +168,66 @@ defmodule ExSwan.Plug.CeremonyTest do
     assert authentication.new_sign_count == 1
   end
 
+  test "authentication preserves the configured user-verification policy", context do
+    fixture = context.fixture
+    ceremony = fixture["ceremony"]
+    credential = register_fixture(fixture)
+    callback_context = %{test_pid: self(), credential: credential}
+
+    assert {:ok, conn, _options} =
+             ExSwan.Plug.begin_authentication(conn(),
+               rp_id: ceremony["rpID"],
+               origin: ceremony["origin"],
+               challenge: fixture["inputs"]["challenge"],
+               user_verification: "discouraged",
+               expected_user_handle: Base.url_decode64!(ceremony["userID"], padding: false),
+               ceremony_store: context.ceremony_store,
+               context: callback_context,
+               now: 100
+             )
+
+    response = fixture["invalid"]["authentication"]["userVerificationMissing"]["response"]
+
+    assert {:ok, _conn, _authentication, :updated} =
+             ExSwan.Plug.finish_authentication(conn,
+               response: response,
+               store: Store,
+               ceremony_store: context.ceremony_store,
+               now: 101
+             )
+  end
+
+  test "registration preserves the configured user-verification policy", context do
+    fixture = context.fixture
+    ceremony = fixture["ceremony"]
+    callback_context = %{test_pid: self()}
+
+    assert {:ok, conn, _options} =
+             ExSwan.Plug.begin_registration(conn(),
+               user: :authorized_user,
+               user_handle: Base.url_decode64!(ceremony["userID"], padding: false),
+               user_name: "person@example.com",
+               rp_name: "Example",
+               rp_id: ceremony["rpID"],
+               origin: ceremony["origin"],
+               challenge: fixture["inputs"]["challenge"],
+               authenticator_selection: %{user_verification: "preferred"},
+               ceremony_store: context.ceremony_store,
+               context: callback_context,
+               now: 100
+             )
+
+    response = fixture["invalid"]["registration"]["userVerificationMissing"]["response"]
+
+    assert {:ok, _conn, _registration, :created} =
+             ExSwan.Plug.finish_registration(conn,
+               response: response,
+               store: Store,
+               ceremony_store: context.ceremony_store,
+               now: 101
+             )
+  end
+
   test "configuration rejects unsafe origins and malformed RP IDs" do
     assert {:error, :invalid_origin} =
              ExSwan.Plug.validate_config(rp_id: "example.com", origin: "http://example.com")
